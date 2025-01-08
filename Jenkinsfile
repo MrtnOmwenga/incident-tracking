@@ -46,8 +46,8 @@ pipeline {
                 script {
                     def frontendImageTag = "${ECR_FRONTEND}:latest"
                     def backendImageTag = "${ECR_BACKEND}:latest"
-                    sh "docker tag frontend ${frontendImageTag}"
-                    sh "docker tag backend ${backendImageTag}"
+                    sh "docker tag workspace-frontend-1 ${frontendImageTag}"
+                    sh "docker tag workspace-backend-1 ${backendImageTag}"
                 }
             }
         }
