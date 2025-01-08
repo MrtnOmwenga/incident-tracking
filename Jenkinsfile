@@ -30,7 +30,7 @@ pipeline {
         stage('Run Migrations') {
             steps {
                 script {
-                    sh 'docker compose -d migrate up migration'
+                    sh 'docker compose up -d migration'
                 }
             }
         }
