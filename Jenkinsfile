@@ -3,8 +3,8 @@ pipeline {
     environment {
         AWS_REGION = 'us-east-1' 
         AWS_CREDENTIALS = credentials('aws-access-key')
-        ECR_FRONTEND = '000000000000.dkr.ecr.${AWS_REGION}.amazonaws.com/incident-tracking/frontend'
-        ECR_BACKEND = '000000000000.dkr.ecr.${AWS_REGION}.amazonaws.com/incident-tracking/backend'
+        ECR_FRONTEND = "000000000000.dkr.ecr.${AWS_REGION}.amazonaws.com/incident-tracking/frontend"
+        ECR_BACKEND = "000000000000.dkr.ecr.${AWS_REGION}.amazonaws.com/incident-tracking/backend"
         DOCKER_COMPOSE_FILE = 'compose.yaml'
     }
     stages {
