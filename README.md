@@ -80,3 +80,5 @@ This repository uses Docker and Docker Compose to run a full-stack application w
    - Dependencies installed at runtime for development
    - Wire tool installation included in backend
    - Node modules isolated in named volume
+
+AWS access portal URL: https://d-9067c3daf6.awsapps.com/start, Username: admin, One-time password: u!2Hs)r29ry^%UDNVWj&3uXu1UCvZSkhEa3^NWRTXkmV5o8X>*c4Vh.r-w.7s4
