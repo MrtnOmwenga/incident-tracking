@@ -16,7 +16,7 @@ pipeline {
         stage('Login to ECR') {
             steps {
                 script {
-                    withCredentials([string(credentialsId: 'aws-access-key', variable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-access-key']]) {
                         sh '''#!/bin/bash
                         export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
                         export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
