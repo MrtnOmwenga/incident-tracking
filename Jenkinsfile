@@ -33,9 +33,6 @@ pipeline {
                 script {
                     sh '''
                     cd $WORKSPACE_DIR
-                    ls -la ./backend/migrations 
-                    pwd 
-                    whoami 
                     docker-compose up migration
                     '''
                 }
@@ -53,6 +50,7 @@ pipeline {
                 script {
                     def frontendImageTag = "${ECR_FRONTEND}:latest"
                     def backendImageTag = "${ECR_BACKEND}:latest"
+                    sh "docker images"
                     sh "docker tag workspace-frontend-1 ${frontendImageTag}"
                     sh "docker tag workspace-backend-1 ${backendImageTag}"
                 }
