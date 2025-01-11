@@ -33,7 +33,7 @@ pipeline {
                 script {
                     sh '''
                     cd $WORKSPACE_DIR
-                    docker-compose migrate up migration
+                    docker-compose up migration
                     '''
                 }
             }
