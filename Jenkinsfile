@@ -5,6 +5,12 @@ pipeline {
         AWS_CREDENTIALS = credentials('aws-access-key')
         ECR_FRONTEND = "000000000000.dkr.ecr.${AWS_REGION}.amazonaws.com/incident-tracking/frontend"
         ECR_BACKEND = "000000000000.dkr.ecr.${AWS_REGION}.amazonaws.com/incident-tracking/backend"
+
+        DB_USER = credentials('db-user')
+        DB_PASSWORD = credentials('db-password')
+        DB_NAME = credentials('db-name')
+        API_URL = credentials('api-url')
+
         DOCKER_COMPOSE_FILE = 'docker-compose.yml'
         WORKSPACE_DIR = "${env.WORKSPACE}"
     }
