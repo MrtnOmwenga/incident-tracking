@@ -59,11 +59,6 @@ pipeline {
                         echo "Current directory: $(pwd)"
                         echo "Content of backend/migrations:"
                         ls -la backend/migrations/
-                        echo "Environment variables (masked sensitive data):"
-                        echo "DB_NAME=${DB_NAME}"
-                        echo "DB_PORT=${DB_PORT}"
-                        echo "Postgres host check:"
-                        docker-compose ps postgres
                         echo "Running migrations..."
 
                         docker-compose up migration
