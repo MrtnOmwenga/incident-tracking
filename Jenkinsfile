@@ -33,7 +33,9 @@ pipeline {
                 script {
                     sh '''
                     cd $WORKSPACE_DIR
-                    ls -l ./backend/migrations
+                    ls -la ./backend/migrations 
+                    pwd 
+                    whoami 
                     docker-compose up migration
                     '''
                 }
