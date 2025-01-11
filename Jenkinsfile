@@ -59,6 +59,9 @@ pipeline {
                         echo "Current directory: $(pwd)"
                         echo "Content of backend/migrations:"
                         ls -la backend/migrations/
+
+                        echo "Postgres host check:"
+                        docker-compose ps postgres
                         echo "Running migrations..."
 
                         docker-compose up migration
