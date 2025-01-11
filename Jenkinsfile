@@ -1,16 +1,17 @@
 pipeline {
     agent any
     environment {
-        AWS_REGION = 'us-east-1' 
+        AWS_REGION = 'us-east-1'
         AWS_CREDENTIALS = credentials('aws-access-key')
         ECR_FRONTEND = "000000000000.dkr.ecr.${AWS_REGION}.amazonaws.com/incident-tracking/frontend"
         ECR_BACKEND = "000000000000.dkr.ecr.${AWS_REGION}.amazonaws.com/incident-tracking/backend"
 
         DB_USER = credentials('db-user')
         DB_PASSWORD = credentials('db-password')
+        DB_PORT = credentials('db-port')
         DB_NAME = credentials('db-name')
         API_URL = credentials('api-url')
-
+        
         DOCKER_COMPOSE_FILE = 'docker-compose.yml'
         WORKSPACE_DIR = "${env.WORKSPACE}"
     }
@@ -18,6 +19,25 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 checkout scm
+            }
+        }
+        stage('Setup Environment') {
+            steps {
+                script {
+                    sh '''
+                        echo "DB_USER=${DB_USER}" > .env
+                        echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+                        echo "DB_PORT=${DB_PORT}" >> .env
+                        echo "DB_NAME=${DB_NAME}" >> .env
+                        echo "API_URL=${API_URL}" >> .env
+                        
+                        # Print env file contents (mask sensitive data)
+                        echo "Verifying .env file exists:"
+                        ls -la .env
+                        echo "First line of .env (DB_USER only):"
+                        head -n 1 .env
+                    '''
+                }
             }
         }
         stage('Login to ECR') {
@@ -28,7 +48,7 @@ pipeline {
                         export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
                         export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
                         aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_FRONTEND
-                        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_BACKEND
+                        aws ecr get-login-password --region $AWS_REGION | docker login --username-stdin $ECR_BACKEND
                         '''
                     }
                 }
@@ -38,8 +58,14 @@ pipeline {
             steps {
                 script {
                     sh '''
-                    cd $WORKSPACE_DIR
-                    docker-compose up migration
+                        cd $WORKSPACE_DIR
+                        # Debug information
+                        echo "Current directory:"
+                        pwd
+                        echo "Migration files:"
+                        ls -la ./backend/migrations
+                        echo "Running migration with verbose logging..."
+                        docker-compose up migration --verbose
                     '''
                 }
             }
