@@ -5,7 +5,8 @@ pipeline {
         AWS_CREDENTIALS = credentials('aws-access-key')
         ECR_FRONTEND = "000000000000.dkr.ecr.${AWS_REGION}.amazonaws.com/incident-tracking/frontend"
         ECR_BACKEND = "000000000000.dkr.ecr.${AWS_REGION}.amazonaws.com/incident-tracking/backend"
-        DOCKER_COMPOSE_FILE = 'compose.yaml'
+        DOCKER_COMPOSE_FILE = 'docker-compose.yml'
+        WORKSPACE_DIR = "${env.WORKSPACE}"
     }
     stages {
         stage('Checkout Code') {
@@ -30,7 +31,11 @@ pipeline {
         stage('Run Migrations') {
             steps {
                 script {
-                    sh 'docker-compose up migration'
+                    sh '''
+                    cd $WORKSPACE_DIR
+                    ls -l
+                    docker-compose up migration
+                    '''
                 }
             }
         }
@@ -46,8 +51,8 @@ pipeline {
                 script {
                     def frontendImageTag = "${ECR_FRONTEND}:latest"
                     def backendImageTag = "${ECR_BACKEND}:latest"
-                    sh "docker tag frontend ${frontendImageTag}"
-                    sh "docker tag backend ${backendImageTag}"
+                    sh "docker tag workspace-frontend-1 ${frontendImageTag}"
+                    sh "docker tag workspace-backend-1 ${backendImageTag}"
                 }
             }
         }
