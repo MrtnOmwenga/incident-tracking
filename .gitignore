@@ -5,3 +5,5 @@ backend/.env
 frontend/.env
 
 jenkins_home
+
+jenkins_home.tar.gz
