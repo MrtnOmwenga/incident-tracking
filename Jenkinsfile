@@ -57,10 +57,7 @@ pipeline {
                     sh '''
                         ls -la ${WORKSPACE_DIR}/backend/migrations
 
-                        chmod -R 755 ./backend/migrations
-                        docker-compose run --rm --entrypoint sh migration -c "ls -la"
                         docker-compose run --rm --entrypoint sh migration -c "ls -la /migrations"
-                        docker-compose run --rm --entrypoint sh migration -c "ls -la /home"
 
                         /usr/local/bin/docker-compose --profile migrate up migration
                     '''
