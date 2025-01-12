@@ -1,5 +1,11 @@
 FROM migrate/migrate
+
 COPY ./backend/migrations /migrations
+
+COPY run-migrations.sh /run-migrations.sh
+
+RUN chmod +x /migrate.sh
+
 WORKDIR /migrations
-ENTRYPOINT ["migrate", "-verbose", "-source", "file:///migrations", "-database"]
-CMD ["postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable", "up"]
+
+ENTRYPOINT ["/migrate.sh"]
