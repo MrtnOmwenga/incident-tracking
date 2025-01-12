@@ -62,7 +62,7 @@ services:
       postgres:
         condition: service_healthy
     working_dir: /
-    command: ["-path=/migrations", "-database", "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable", "-verbose", "up", "2"]
+    command: ["-verbose", "-path=/migrations", "-database", "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable", "up"]
     profiles: ["migrate"]
     networks:
       - default
