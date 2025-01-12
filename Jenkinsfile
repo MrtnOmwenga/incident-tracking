@@ -26,6 +26,7 @@ pipeline {
                 script {
                     sh '''
                         docker-compose down
+                        chmod -R 755 ./backend/migrations
 
                         echo "DB_USER=${DB_USER}" > .env
                         echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
