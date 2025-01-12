@@ -54,7 +54,7 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        ls -la ./backend/migrations
+                        ls -la ${WORKSPACE_DIR}/backend/migrations
 
                         docker-compose run --rm --entrypoint sh migration -c "ls -la /migrations"
 
