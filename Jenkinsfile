@@ -54,12 +54,14 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        cd $WORKSPACE_DIR
+                        cd $WORKSPACE_DIR 
                         
                         docker compose version
                         docker-compose version
 
                         /usr/local/bin/docker-compose --profile migrate up migration
+
+                        /usr/bin/docker compose --profile migrate up migration
                     '''
                 }
             }
