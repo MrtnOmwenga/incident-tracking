@@ -1,4 +1,4 @@
-FROM golang-migrate/migrate:v4.18.1
+FROM migrate/migrate
 COPY ./backend/migrations /migrations
 WORKDIR /migrations
 ENTRYPOINT ["migrate", "-verbose", "-source", "file:///migrations", "-database"]
