@@ -63,7 +63,7 @@ services:
         condition: service_healthy
     # command: ["-path=migrations", "-database", "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable", "up"]
     command: >
-      sh -c "ls -a && -verbose -path=/migration -database=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable up"
+      sh -c "ls -a"
     networks:
       - default
 
