@@ -51,7 +51,7 @@ services:
   migration:
     image: migrate/migrate
     volumes:
-      - ${PWD}/backend/migrations:/home/migrations:z
+      - ./backend/migrations:/migrations
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -61,8 +61,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    working_dir: /home/migrations
-    command: ["-verbose", "-source", "file:///home/migrations", "-database", "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable", "up"]
+    command: ["-path", "/migrations/", "-database", "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable", "up"]
     profiles: ["migrate"]
     networks:
       - default
