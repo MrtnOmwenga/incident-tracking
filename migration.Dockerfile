@@ -8,4 +8,4 @@ RUN chmod +x /migrate.sh
 
 WORKDIR /migrations
 
-ENTRYPOINT ["/migrate.sh"]
+ENTRYPOINT /migrate.sh
