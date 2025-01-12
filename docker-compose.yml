@@ -51,7 +51,10 @@ services:
   migration:
     image: migrate/migrate
     volumes:
-      - ./backend/migrations:/migrations
+      - type: bind
+        source: ${WORKING_DIR}/backend/migrations:/migrations
+        target: /migrations
+        consistency: cached
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
