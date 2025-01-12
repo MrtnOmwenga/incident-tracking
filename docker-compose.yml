@@ -51,7 +51,10 @@ services:
   migration:
     image: migrate/migrate
     volumes:
-      - ${PWD}/backend/migrations:/migrations
+      - type: bind
+        source: ${PWD}/backend/migrations
+        target: /migrations
+        selinux: z
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
