@@ -55,6 +55,10 @@ pipeline {
                 script {
                     sh '''
                         cd $WORKSPACE_DIR
+                        pwd
+                        ls -la
+                        ls -la backend/migrations
+                        ls -la ${WORKSPACE}/backend/migrations/*.sql
                         docker-compose up migration
                     '''
                 }
