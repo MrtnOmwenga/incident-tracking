@@ -61,7 +61,7 @@ pipeline {
 
                         /usr/local/bin/docker-compose --profile migrate up migration
 
-                        /usr/bin/docker compose --profile migrate up migration
+                        docker-compose logs migration
                     '''
                 }
             }
