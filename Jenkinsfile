@@ -25,7 +25,7 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        docker-compose --version
+                        docker-compose down
 
                         echo "DB_USER=${DB_USER}" > .env
                         echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
@@ -57,6 +57,7 @@ pipeline {
                     sh '''
                         ls -la ${WORKSPACE_DIR}/backend/migrations
 
+                        chmod -R 755 ./backend/migrations
                         docker-compose run --rm --entrypoint sh migration -c "ls -la /migrations"
 
                         /usr/local/bin/docker-compose --profile migrate up migration
