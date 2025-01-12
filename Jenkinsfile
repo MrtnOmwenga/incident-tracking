@@ -57,7 +57,6 @@ pipeline {
                         ls -la ./backend/migrations
 
                         docker-compose run --rm --entrypoint sh migration -c "ls -la /migrations"
-                        docker-compose run --rm --entrypoint sh migration -c "ls -la /migrations/*.sql"
 
                         /usr/local/bin/docker-compose --profile migrate up migration
                     '''
