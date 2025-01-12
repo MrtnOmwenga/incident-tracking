@@ -55,9 +55,6 @@ pipeline {
                     sh '''
                         ls -la ${WORKSPACE_DIR}/backend/migrations
 
-                        touch backend/migrations/test.txt
-                        ls -la backend/migrations/
-
                         docker-compose run --rm --entrypoint sh migration -c "ls -la /migrations"
 
                         /usr/local/bin/docker-compose --profile migrate up migration
