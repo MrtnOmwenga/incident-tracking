@@ -52,7 +52,7 @@ services:
     image: migrate/migrate
     user: "0:0"
     volumes:
-      - ${WORKSPACE_DIR}/backend/migrations/*.sql:/migrations
+      - ${WORKSPACE_DIR}/backend/migrations:/migrations
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
