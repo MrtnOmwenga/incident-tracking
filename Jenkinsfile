@@ -59,9 +59,7 @@ pipeline {
                         docker compose version
                         docker-compose version
 
-                        /usr/local/bin/docker-compose --profile migrate up migration
-
-                        docker-compose logs migration
+                        /usr/local/bin/docker-compose --profile migrate up migration -d
                     '''
                 }
             }
