@@ -26,7 +26,6 @@ pipeline {
                 script {
                     sh '''
                         docker-compose down
-                        chmod -R 755 ./backend/migrations
 
                         echo "DB_USER=${DB_USER}" > .env
                         echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
@@ -57,6 +56,9 @@ pipeline {
                 script {
                     sh '''
                         ls -la ${WORKSPACE_DIR}/backend/migrations
+
+                        touch backend/migrations/test.txt
+                        ls -la backend/migrations/
 
                         docker-compose run --rm --entrypoint sh migration -c "ls -la /migrations"
 
