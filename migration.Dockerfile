@@ -2,7 +2,7 @@ FROM migrate/migrate
 
 COPY ./backend/migrations /migrations
 
-COPY run-migrations.sh /run-migrations.sh
+COPY migrate.sh /migrate.sh
 
 RUN chmod +x /migrate.sh
 
