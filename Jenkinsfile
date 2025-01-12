@@ -38,7 +38,7 @@ pipeline {
                         echo "DB_PORT=${DB_PORT}" >> backend/.env
                         echo "DB_NAME=${DB_NAME}" >> backend/.env
                         echo "DB_SSL_MODE=disable" >> backend/.env
-                        echo "DB_HOST=postgres" >>> backend/.env
+                        echo "DB_HOST=postgres" >> backend/.env
                     '''
                 }
             }
