@@ -51,7 +51,7 @@ services:
   migration:
     image: migrate/migrate
     volumes:
-      - ${PWD}/backend/migrations/*.sql:/migrations/*.sql
+      - ${PWD}/backend/migrations/*.up.sql:/migrations
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
