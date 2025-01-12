@@ -54,13 +54,7 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        cd $WORKSPACE_DIR 
-                        
-                        docker-compose run --rm migration ls -la /migrations
-                        
                         /usr/local/bin/docker-compose --profile migrate up migration
-
-                        docker-compose run --rm migration -verbose -path /migrations -database postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable up
                     '''
                 }
             }
