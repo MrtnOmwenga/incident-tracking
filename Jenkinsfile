@@ -54,6 +54,7 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        /usr/bin/docker compose up migration
                         /usr/local/bin/docker-compose --profile migrate up migration
                     '''
                 }
