@@ -32,6 +32,13 @@ pipeline {
                         echo "DB_PORT=${DB_PORT}" >> .env
                         echo "DB_NAME=${DB_NAME}" >> .env
                         echo "API_URL=${API_URL}" >> .env
+
+                        echo "DB_USER=${DB_USER}" > backend/.env
+                        echo "DB_PASSWORD=${DB_PASSWORD}" >> backend/.env
+                        echo "DB_PORT=${DB_PORT}" >> backend/.env
+                        echo "DB_NAME=${DB_NAME}" >> backend/.env
+                        echo "DB_SSL_MODE=disable" >> backend/.env
+                        echo "DB_HOST=postgres" >>> backend/.env
                     '''
                 }
             }
@@ -54,6 +61,7 @@ pipeline {
             steps {
                 script {
                     sh '''
+                    ls -la ./backend/migrations
                         /usr/bin/docker compose up migration
                         /usr/local/bin/docker-compose --profile migrate up migration
                     '''
