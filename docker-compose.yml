@@ -49,9 +49,9 @@ services:
       - default
 
   migration:
-    build:
-      context: .
-      dockerfile: migration.Dockerfile
+    image: migrate/migrate:v4
+    volumes:
+      - ./backend/migrations:/migrations
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -61,6 +61,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    working_dir: /migrations
+    command: ["-verbose", "-source", "file:///migrations", "-database", "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable", "up"]
     profiles: ["migrate"]
     networks:
       - default

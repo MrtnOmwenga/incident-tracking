@@ -55,6 +55,12 @@ pipeline {
                     sh '''
                         ls -la ${WORKSPACE_DIR}/backend/migrations
 
+                        docker pull migrate/migrate:v4
+
+                        docker-compose run --rm --entrypoint sh migration -c "find /migrations -type f -ls"
+
+                        docker-compose run --rm --entrypoint sh migration -c "mount | grep migrations"
+
                         docker-compose run --rm --entrypoint sh migration -c "ls -la /migrations"
 
                         /usr/local/bin/docker-compose --profile migrate up migration
