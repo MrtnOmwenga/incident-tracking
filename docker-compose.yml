@@ -52,7 +52,7 @@ services:
     image: migrate/migrate
     volumes:
       - type: bind
-        source: ${WORKING_DIR}/backend/migrations:/migrations
+        source: ./backend/migrations:/migrations
         target: /migrations
         consistency: cached
     environment:
