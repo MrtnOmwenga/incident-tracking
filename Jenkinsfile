@@ -56,8 +56,7 @@ pipeline {
                     sh '''
                         cd $WORKSPACE_DIR 
                         
-                        docker compose version
-                        docker-compose version
+                        docker-compose run --rm migration sh -c "ls -la /migrations"
 
                         /usr/local/bin/docker-compose --profile migrate up migration
                     '''
