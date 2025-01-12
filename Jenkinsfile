@@ -57,8 +57,7 @@ pipeline {
                     sh '''
                         ls -la ${WORKSPACE_DIR}/backend/migrations
 
-                        docker-compose run --rm --entrypoint sh migration -c "ls -la /app"
-                        docker-compose run --rm --entrypoint sh migration -c "ls -la /app/migrations"
+                        docker-compose run --rm --entrypoint sh migration -c "ls -la /migrations"
 
                         /usr/local/bin/docker-compose --profile migrate up migration
                     '''
