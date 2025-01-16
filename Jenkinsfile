@@ -1,7 +1,7 @@
 pipeline {
     agent any
     triggers {
-        githubPush() es
+        githubPush()
         // pollSCM('* * * * *')  // For general Git repositories
     }
     environment {
