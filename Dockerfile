@@ -40,8 +40,8 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 RUN usermod -aG docker jenkins && newgrp docker
 
 # Copy Jenkins configuration if needed
-COPY jenkins_home /var/jenkins_home
-RUN chown -R jenkins:jenkins /var/jenkins_home
+# COPY jenkins_home /var/jenkins_home
+# RUN chown -R jenkins:jenkins /var/jenkins_home
 
 USER jenkins
 EXPOSE 8080 50000

@@ -1,5 +1,9 @@
 pipeline {
     agent any
+    triggers {
+        githubPush() es
+        // pollSCM('* * * * *')  // For general Git repositories
+    }
     environment {
         AWS_REGION = 'us-east-1'
         AWS_CREDENTIALS = credentials('aws-access-key')
