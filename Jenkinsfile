@@ -51,12 +51,16 @@ pipeline {
                             export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
                             export AWS_DEFAULT_REGION=us-east-1
                             
-                            # Verify AWS credentials
-                            aws sts get-caller-identity
-                            
-                            # Network diagnostics
-                            echo "Testing connectivity to ECR..."
-                            curl -v https://ecr.us-east-1.amazonaws.com/ || true
+                            # Login to ECR (using the secure password-stdin method)
+                            aws ecr get-login-password --region us-east-1 | docker login \
+                                --username AWS \
+                                --password-stdin \
+                                ${ECR_FRONTEND}
+                                
+                            aws ecr get-login-password --region us-east-1 | docker login \
+                                --username AWS \
+                                --password-stdin \
+                                ${ECR_BACKEND}
                         '''
                     }
                 }
