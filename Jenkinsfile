@@ -71,7 +71,7 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    sh 'docker-compose --platform linux/amd64 build'
+                    sh 'docker-compose build'
                 }
             }
         }
