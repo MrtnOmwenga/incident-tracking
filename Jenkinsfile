@@ -37,6 +37,9 @@ pipeline {
                         echo "DB_NAME=${DB_NAME}" >> .env
                         echo "API_URL=${API_URL}" >> .env
                         echo "WORKSPACE_DIR=${WORKSPACE_DIR}" >> .env
+
+                        echo ${ECR_FRONTEND}
+                        echo ${ECR_BACKEND}
                     '''
                 }
             }
