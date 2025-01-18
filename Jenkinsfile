@@ -46,13 +46,24 @@ pipeline {
                 script {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-access-key']]) {
                         sh '''#!/bin/bash
-                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                        # aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_FRONTEND
-                        # aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_BACKEND
-
-                        docker login -u AWS -p $(aws ecr get-login-password --region us-east-1) $ECR_FRONTEND
-                        docker login -u AWS -p $(aws ecr get-login-password --region us-east-1) $ECR_BACKEND
+                            set -e
+                            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                            export AWS_DEFAULT_REGION=us-east-1
+                            
+                            # Verify AWS credentials are working
+                            aws sts get-caller-identity
+                            
+                            # Login to ECR (using the secure password-stdin method)
+                            aws ecr get-login-password --region us-east-1 | docker login \
+                                --username AWS \
+                                --password-stdin \
+                                ${ECR_FRONTEND}
+                                
+                            aws ecr get-login-password --region us-east-1 | docker login \
+                                --username AWS \
+                                --password-stdin \
+                                ${ECR_BACKEND}
                         '''
                     }
                 }
