@@ -56,13 +56,13 @@ pipeline {
                             
                             # Network diagnostics
                             echo "Testing connectivity to ECR..."
-                            curl -v https://api.ecr.us-east-1.amazonaws.com/ || true
+                            curl -v https://ecr.us-east-1.amazonaws.com/ || true
                             
                             echo "DNS lookup for ECR..."
-                            nslookup api.ecr.us-east-1.amazonaws.com || true
+                            nslookup ecr.us-east-1.amazonaws.com || true
                             
                             echo "Checking outbound connectivity..."
-                            ping -c 4 api.ecr.us-east-1.amazonaws.com || true
+                            ping -c 4 ecr.us-east-1.amazonaws.com || true
                             
                             # Try ECR login with debug
                             AWS_DEBUG=true aws ecr get-login-password --region us-east-1
