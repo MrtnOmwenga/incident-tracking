@@ -29,6 +29,8 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        docker-compose down
+
                         echo "DB_USER=${DB_USER}" > .env
                         echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
                         echo "DB_PORT=${DB_PORT}" >> .env
@@ -69,7 +71,7 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    sh 'docker-compose --platform linux/amd64 build'
+                    sh 'docker-compose build'
                 }
             }
         }
