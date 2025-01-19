@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  labels:
+    app: incident-tracking
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: incident-tracking
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: incident-tracking
+        tier: backend
+    spec:
+      containers:
+      - name: backend
+        image: 000000000000.dkr.ecr.us-east-1.amazonaws.com/incident-tracking/backend:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: password
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: db_port
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: db_name

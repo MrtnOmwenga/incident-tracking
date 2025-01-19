@@ -50,8 +50,8 @@ services:
 
   migration:
     build:
-      context: .
-      dockerfile: migration.Dockerfile
+      context: ./migration
+      dockerfile: Dockerfile
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432

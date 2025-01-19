@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  labels:
+    app: incident-tracking
+    tier: frontend
+spec:
+  replicas: 2  # Number of frontend pods to run
+  selector:
+    matchLabels:
+      app: incident-tracking
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: incident-tracking
+        tier: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: 000000000000.dkr.ecr.us-east-1.amazonaws.com/incident-tracking/frontend:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: api_url

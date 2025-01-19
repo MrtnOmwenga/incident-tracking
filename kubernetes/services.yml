@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  type: LoadBalancer  # Exposes the service externally
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: incident-tracking
+    tier: frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  type: ClusterIP  # Internal service only
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: incident-tracking
+    tier: backend

@@ -1,6 +1,6 @@
 FROM migrate/migrate
 
-COPY ./backend/migrations /migrations
+COPY ../backend/migrations /migrations
 
 COPY migrate.sh /migrate.sh
 
