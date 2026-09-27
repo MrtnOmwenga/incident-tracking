@@ -23,7 +23,9 @@ the monitoring in a sandbox, without an account.
 - **A launch page for every demo.** Demos sleep when nobody is using them, so launching one shows
   "Developing: starting Redacted" with a five-part technical introduction that advances on its
   own. Lighthouse polls the demo's health address, which also wakes it; when it answers, a LIVE bar
-  drops in, and the demo opens once the introduction ends (or at once, with "Skip intro").
+  drops in, and the demo opens once the introduction ends (or at once, with "Skip intro"). A demo
+  with a guided tour (Redacted has two: one that plays itself, one that guides you) offers it at
+  the end instead.
 - **An About page** built from the CV ([screenshot](docs/about.png)).
 - **Responsive and dependable:** every page works from phone to desktop, reads fully without
   JavaScript, and still renders if the monitoring data can't be loaded.
@@ -177,5 +179,4 @@ Choices worth explaining:
 
 ## Roadmap
 
-- Guided tutorials for demos that need one
 - Deployment with Terraform and k3s on Oracle Cloud's free tier, behind Cloudflare

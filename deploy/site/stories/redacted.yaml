@@ -93,7 +93,7 @@ testing:
   title: How it is tested
   paragraphs:
     - >-
-      603 tests run against a real PostgreSQL database in containers. An authorization matrix of
+      605 tests run against a real PostgreSQL database in containers. An authorization matrix of
       441 requests is generated from the policy itself (eight kinds of caller, every action, own
       department, other department, other organization), so every endpoint is shown to enforce
       exactly the published permission table.
@@ -115,7 +115,7 @@ limits:
       reload. Long-lived documents would benefit from periodic compaction of their edit history.
 
 numbers:
-  - { value: "603", label: automated tests }
+  - { value: "605", label: automated tests }
   - { value: "441", label: requests in the authorization matrix }
   - { value: "100%", label: "mutation score, security modules" }
   - { value: "100 ms", label: to rebuild a redacted copy }
@@ -125,6 +125,6 @@ fact_file:
   - { label: Role, value: "Sole engineer: design, build and tests" }
   - { label: Stack, value: "NestJS · PostgreSQL · Yjs · Hocuspocus · React" }
   - { label: Security, value: "Row-level security · hash-chained audit log" }
-  - { label: Tests, value: "603 · Testcontainers · Playwright · Stryker · k6" }
+  - { label: Tests, value: "605 · Testcontainers · Playwright · Stryker · k6" }
 
-call_to_action: Demote an agent while they type, and watch the words vanish.
+call_to_action: Demote an agent while they type, and watch the words vanish. Or let the two-minute tour play it for you.

@@ -133,6 +133,7 @@ projects:
     repo: https://github.com/MrtnOmwenga/RBAC-API
     docs: https://github.com/MrtnOmwenga/RBAC-API/blob/master/docs/COLLABORATION.md
     demo: https://redacted.example.com
+    tour: https://redacted.example.com/?tour=play
     health: http://redacted.demos.svc.cluster.local:3000/health
     monitor: redacted
     intro:
@@ -174,7 +175,7 @@ projects:
           A generated authorization matrix of 441 requests, property tests over 500 random
           documents, browser tests with three users at once, and a 100% mutation score on the
           security-critical modules.
-        facts: [{ label: tests, value: "603" }, { label: "mutation score, security modules", value: "100%" }]
+        facts: [{ label: tests, value: "605" }, { label: "mutation score, security modules", value: "100%" }]
 
   - slug: ghostchat
     name: GhostChat
