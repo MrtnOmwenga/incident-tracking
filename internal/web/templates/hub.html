@@ -1,0 +1,40 @@
+{{template "head" .Owner}}
+<meta name="description" content="{{.Owner}}: projects and live demos.">
+</head>
+<body>
+{{template "brand" .}}
+<main class="wrap">
+  <section class="hero card">
+    <h1>{{.Owner}}</h1>
+    {{with .Catalog.Headline}}<p class="headline">{{.}}</p>{{end}}
+    {{with .Catalog.About}}<p class="about">{{.}}</p>{{end}}
+    {{with .Catalog.Links}}
+    <p class="links">{{range .}}<a class="button ghost" href="{{.URL}}" rel="me noopener">{{.Label}}</a>{{end}}</p>
+    {{end}}
+  </section>
+
+  <h2 id="projects">Projects</h2>
+  {{if not .Cards}}<p class="muted">No projects yet.</p>{{end}}
+  <ul class="projects" aria-labelledby="projects">
+  {{range .Cards}}
+    <li class="project card">
+      <div class="row">
+        <h3>{{.Name}}</h3>
+        {{if eq .Health "up"}}<span class="live up"><span class="health up" aria-hidden="true"></span>Live{{with .Uptime90d}} · {{pct .}}{{end}}</span>
+        {{else if eq .Health "down"}}<a class="live down" href="/status"><span class="health down" aria-hidden="true"></span>Down</a>
+        {{else if .Health}}<span class="live"><span class="health" aria-hidden="true"></span>Checking</span>{{end}}
+      </div>
+      <p class="tagline">{{.Tagline}}</p>
+      {{with .Description}}<p class="muted">{{.}}</p>{{end}}
+      {{with .Tags}}<ul class="tags">{{range .}}<li>{{.}}</li>{{end}}</ul>{{end}}
+      <div class="actions">
+        {{if .Demo}}<a class="button primary" href="/go/{{.Slug}}">Launch demo →</a>{{end}}
+        {{with .Repo}}<a class="button" href="{{.}}" rel="noopener">Code</a>{{end}}
+      </div>
+      {{with .NoDemoNote}}<p class="note muted">{{.}}</p>{{end}}
+    </li>
+  {{end}}
+  </ul>
+  <p class="muted">Demos sleep when nobody is using them, so a demo may take up to a minute to start. Everything here is watched by Lighthouse: see the <a href="/status">status page</a>.</p>
+</main>
+{{template "foot"}}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/MrtnOmwenga/lighthouse/internal/hub"
 	"github.com/MrtnOmwenga/lighthouse/internal/status"
 	"github.com/MrtnOmwenga/lighthouse/internal/store"
 )
@@ -42,6 +43,7 @@ var funcs = template.FuncMap{
 		}
 		return humanDuration(end.Sub(i.StartedAt))
 	},
+	"inc":   func(i int) int { return i + 1 },
 	"words": func(s string) string { return strings.ReplaceAll(s, "_", " ") },
 	// latest is the most recent update written for people (not a status or severity change).
 	"latest": func(events []store.Event) *store.Event {
@@ -87,13 +89,18 @@ func plural(n int, unit string) string {
 }
 
 type pageData struct {
-	Owner string
-	Now   time.Time
-	Page  status.Page
+	Owner   string
+	Section string // highlighted in the navigation
+	Now     time.Time
+	Page    status.Page
 	// incident page
 	Incident *status.Incident
 	// error page
 	Title, Message string
+	// hub and launch pages
+	Catalog *hub.Catalog
+	Cards   []projectCard
+	Project *hub.Project
 }
 
 func (s *Server) render(w http.ResponseWriter, status int, name string, data pageData) {
@@ -125,7 +132,7 @@ func (s *Server) statusPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "public, max-age=15")
-	s.render(w, http.StatusOK, "status.html", pageData{Now: now, Page: page})
+	s.render(w, http.StatusOK, "status.html", pageData{Section: "status", Now: now, Page: page})
 }
 
 func (s *Server) publicStatus(w http.ResponseWriter, r *http.Request) {
@@ -168,5 +175,5 @@ func (s *Server) incidentPage(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, http.StatusNotFound, "Not found", "There's no public incident here.")
 		return
 	}
-	s.render(w, http.StatusOK, "incident.html", pageData{Incident: &view})
+	s.render(w, http.StatusOK, "incident.html", pageData{Section: "status", Incident: &view})
 }
