@@ -1,0 +1,16 @@
+# Flux applies deploy/k8s/production from this repository, and keeps it applied.
+# Bootstrap (once): see deploy/k8s/README.md.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./deploy/k8s/production
+  prune: true
+  wait: true
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

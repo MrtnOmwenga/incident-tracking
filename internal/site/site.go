@@ -201,13 +201,14 @@ func (s *Site) Next(slug string) (Project, bool) {
 	return Project{}, false
 }
 
-// Load reads a site folder. An empty dir is an empty site.
-func Load(dir string) (*Site, error) {
+// Load reads a site folder. An empty dir is an empty site. In site.yaml, ${DOMAIN} stands for
+// domain (the host of the site's public URL), so demo addresses are configured in one place.
+func Load(dir, domain string) (*Site, error) {
 	s := &Site{Stories: map[string]*Story{}, Dir: dir}
 	if dir == "" {
 		return s, nil
 	}
-	if err := decode(filepath.Join(dir, "site.yaml"), s); err != nil {
+	if err := decode(filepath.Join(dir, "site.yaml"), s, domain); err != nil {
 		return nil, err
 	}
 	var problems []string
@@ -220,7 +221,7 @@ func Load(dir string) (*Site, error) {
 			continue // a project may have no story yet
 		}
 		st := &Story{}
-		if err := decode(path, st); err != nil {
+		if err := decode(path, st, domain); err != nil {
 			problems = append(problems, err.Error())
 			continue
 		}
@@ -234,11 +235,12 @@ func Load(dir string) (*Site, error) {
 }
 
 // decode reads YAML strictly: unknown keys are errors, so typos surface.
-func decode(path string, v any) error {
+func decode(path string, v any, domain string) error {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
+	raw = bytes.ReplaceAll(raw, []byte("${DOMAIN}"), []byte(domain))
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	dec.KnownFields(true)
 	if err := dec.Decode(v); err != nil && !errors.Is(err, io.EOF) {

@@ -1,0 +1,57 @@
+# New images are published by each repository's release workflow as <unix time>-<short sha>;
+# Flux picks the newest, writes its tag into production/kustomization.yaml and commits it, so
+# every deployment is a commit in this repository.
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata: { name: lighthouse, namespace: flux-system }
+spec: { image: ghcr.io/mrtnomwenga/lighthouse, interval: 5m }
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata: { name: rbac-api, namespace: flux-system }
+spec: { image: ghcr.io/mrtnomwenga/rbac-api, interval: 5m }
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata: { name: ghostchat, namespace: flux-system }
+spec: { image: ghcr.io/mrtnomwenga/ghostchat, interval: 5m }
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata: { name: lighthouse, namespace: flux-system }
+spec:
+  imageRepositoryRef: { name: lighthouse }
+  filterTags: { pattern: '^(?P<ts>[0-9]{10})-[0-9a-f]{7}$', extract: '$ts' }
+  policy: { numerical: { order: asc } }
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata: { name: rbac-api, namespace: flux-system }
+spec:
+  imageRepositoryRef: { name: rbac-api }
+  filterTags: { pattern: '^(?P<ts>[0-9]{10})-[0-9a-f]{7}$', extract: '$ts' }
+  policy: { numerical: { order: asc } }
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata: { name: ghostchat, namespace: flux-system }
+spec:
+  imageRepositoryRef: { name: ghostchat }
+  filterTags: { pattern: '^(?P<ts>[0-9]{10})-[0-9a-f]{7}$', extract: '$ts' }
+  policy: { numerical: { order: asc } }
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata: { name: images, namespace: flux-system }
+spec:
+  interval: 10m
+  sourceRef: { kind: GitRepository, name: flux-system }
+  git:
+    checkout: { ref: { branch: main } }
+    commit:
+      author: { name: Lighthouse deploy bot, email: 103695661+MrtnOmwenga@users.noreply.github.com }
+      messageTemplate: "Deploy {{range .Changed.Changes}}{{.OldValue}} → {{.NewValue}} {{end}}"
+    push: { branch: main }
+  update:
+    path: ./deploy/k8s/production
+    strategy: Setters

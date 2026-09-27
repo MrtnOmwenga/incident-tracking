@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+# The demos' web servers: from the tunnel (visitors) and from Lighthouse (health checks).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-from-tunnel-and-lighthouse
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app, operator: In, values: [redacted, ghostchat] }
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: cloudflared }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: lighthouse }
+      ports: [{ port: 3000 }, { port: 5000 }]
+---
+# Each database from its own app only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redacted-postgres-from-redacted
+spec:
+  podSelector:
+    matchLabels: { app: redacted-postgres }
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: redacted } } }]
+      ports: [{ port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ghostchat-stores-from-ghostchat
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app, operator: In, values: [ghostchat-mongo, ghostchat-redis] }
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: ghostchat } } }]
+      ports: [{ port: 27017 }, { port: 6379 }]

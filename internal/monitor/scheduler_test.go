@@ -291,3 +291,37 @@ func TestRunStopsOnCancel(t *testing.T) {
 		t.Fatal("Run didn't return after cancel")
 	}
 }
+
+// The scheduler reports each automatic incident exactly twice (opened, resolved), after the change
+// is saved, and never for steady states.
+func TestNotifiesOnOpenAndResolveOnly(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := context.Background()
+	var mu sync.Mutex
+	var changes []monitor.Change
+	f.sched.Notify = func(_ context.Context, c monitor.Change) {
+		mu.Lock()
+		defer mu.Unlock()
+		changes = append(changes, c)
+	}
+	in := input("simulated")
+	in.SimulatedMode = "down"
+	m := f.create(in)
+	for range 4 {
+		f.tick()
+	}
+	f.do(func(tx pgx.Tx) error { _, err := store.SetSimulatedMode(ctx, tx, m.ID, "up"); return err })
+	for range 4 {
+		f.tick()
+	}
+	if len(changes) != 2 || !changes[0].Opened || changes[1].Opened || changes[0].IncidentID != changes[1].IncidentID {
+		t.Fatalf("changes: %+v", changes)
+	}
+	if changes[0].TenantID != f.tenant || changes[0].Monitor != "Demo" || changes[0].Failure != monitor.FailStatus {
+		t.Fatalf("opened: %+v", changes[0])
+	}
+	if !changes[1].At.After(changes[1].StartedAt) {
+		t.Fatalf("resolved: %+v", changes[1])
+	}
+}

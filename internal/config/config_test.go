@@ -51,3 +51,31 @@ func TestRejectsBadValues(t *testing.T) {
 		}
 	}
 }
+
+func TestAlertSettings(t *testing.T) {
+	base := map[string]string{"DATABASE_URL": "postgres://x"}
+	with := func(extra map[string]string) (Config, error) {
+		vars := map[string]string{}
+		for k, v := range base {
+			vars[k] = v
+		}
+		for k, v := range extra {
+			vars[k] = v
+		}
+		return Load(env(vars))
+	}
+	if c, err := with(nil); err != nil || c.AlertTo != nil {
+		t.Fatalf("alerts are off by default: %+v %v", c.AlertTo, err)
+	}
+	_, err := with(map[string]string{"ALERT_TO": "me@example.com"})
+	if err == nil || !strings.Contains(err.Error(), "SMTP_HOST") || !strings.Contains(err.Error(), "ALERT_FROM") {
+		t.Fatalf("alerts need a server and a sender: %v", err)
+	}
+	if _, err := with(map[string]string{"ALERT_TO": "not an address", "SMTP_HOST": "smtp.example.com", "ALERT_FROM": "l@example.com"}); err == nil {
+		t.Fatal("a bad recipient must be refused")
+	}
+	c, err := with(map[string]string{"ALERT_TO": "a@example.com, Martin <b@example.com>", "SMTP_HOST": "smtp.example.com", "ALERT_FROM": "l@example.com"})
+	if err != nil || len(c.AlertTo) != 2 || c.AlertTo[1] != "b@example.com" || c.SMTPPort != 587 {
+		t.Fatalf("%+v %v", c, err)
+	}
+}

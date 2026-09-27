@@ -23,6 +23,22 @@ type Scheduler struct {
 	Workers int
 	Log     *slog.Logger
 	Tick    time.Duration // how often to look for due monitors (default 1s)
+	// Notify, if set, hears about incidents opened or resolved automatically, after the change
+	// is committed. It runs on the checking worker, so it should be quick or time-limited.
+	Notify func(ctx context.Context, c Change)
+}
+
+// Change is an incident that a check just opened or resolved.
+type Change struct {
+	TenantID   string
+	Opened     bool // false: resolved
+	IncidentID string
+	Title      string
+	Monitor    string
+	Public     bool
+	StartedAt  time.Time
+	At         time.Time
+	Failure    Failure // why the last check failed, when opened
 }
 
 // Run checks due monitors until ctx is cancelled, then waits for checks in flight.
@@ -103,9 +119,15 @@ func (s *Scheduler) Check(ctx context.Context, tenantID, monitorID string) error
 
 	result := s.probe(ctx, m)
 	at := time.Now()
-	return store.WithTenant(ctx, s.Pool, tenantID, func(tx pgx.Tx) error {
-		return record(ctx, tx, tenantID, monitorID, result, at)
+	var change *Change
+	err = store.WithTenant(ctx, s.Pool, tenantID, func(tx pgx.Tx) (err error) {
+		change, err = record(ctx, tx, tenantID, monitorID, result, at)
+		return err
 	})
+	if err == nil && change != nil && s.Notify != nil {
+		s.Notify(ctx, *change)
+	}
+	return err
 }
 
 func (s *Scheduler) probe(ctx context.Context, m store.Monitor) Result {
@@ -128,14 +150,15 @@ func (s *Scheduler) probe(ctx context.Context, m store.Monitor) Result {
 }
 
 // record stores a check and folds it into the monitor's state, opening or resolving its automatic
-// incident. The monitor row is locked, so two results for one monitor can't interleave.
-func record(ctx context.Context, tx pgx.Tx, tenantID, monitorID string, r Result, at time.Time) error {
+// incident, and reports that change. The monitor row is locked, so two results for one monitor
+// can't interleave.
+func record(ctx context.Context, tx pgx.Tx, tenantID, monitorID string, r Result, at time.Time) (*Change, error) {
 	m, err := store.LockMonitor(ctx, tx, monitorID)
 	if errors.Is(err, store.ErrNotFound) {
-		return nil // deleted while the probe ran
+		return nil, nil // deleted while the probe ran
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 	c := store.Check{MonitorID: m.ID, At: at, OK: r.OK, LatencyMS: int(r.Latency.Milliseconds()), TLSExpiresAt: r.TLSExpiresAt}
 	if r.StatusCode != 0 {
@@ -146,7 +169,7 @@ func record(ctx context.Context, tx pgx.Tx, tenantID, monitorID string, r Result
 		c.Failure = &f
 	}
 	if _, err := store.InsertCheck(ctx, tx, tenantID, c); err != nil {
-		return fmt.Errorf("insert check: %w", err)
+		return nil, fmt.Errorf("insert check: %w", err)
 	}
 
 	next, transition := Next(
@@ -156,53 +179,61 @@ func record(ctx context.Context, tx pgx.Tx, tenantID, monitorID string, r Result
 	)
 	m.Health, m.ConsecutiveFailures, m.ConsecutiveSuccess, m.LastCheckedAt = string(next.Health), next.Failures, next.Successes, &at
 
+	var change *Change
 	switch transition {
 	case Opened:
 		inc, err := store.CreateIncident(ctx, tx, tenantID, store.Incident{
 			MonitorID: &m.ID, Title: m.Name + " is down", Severity: "high", Automatic: true, Public: m.Public, StartedAt: at,
 		})
 		if err != nil {
-			return fmt.Errorf("open incident: %w", err)
+			return nil, fmt.Errorf("open incident: %w", err)
 		}
 		if _, err := store.AddEvent(ctx, tx, tenantID, store.Event{
 			IncidentID: inc.ID, At: at, Kind: "opened", Public: true, Author: "Lighthouse",
 			Message: fmt.Sprintf("%d checks in a row failed (%s).", next.Failures, r.Failure),
 		}); err != nil {
-			return err
+			return nil, err
 		}
 		m.OpenIncidentID = &inc.ID
+		change = &Change{TenantID: tenantID, Opened: true, IncidentID: inc.ID, Title: inc.Title, Monitor: m.Name,
+			Public: inc.Public, StartedAt: at, At: at, Failure: r.Failure}
 	case Resolved:
 		if m.OpenIncidentID != nil {
-			if err := resolve(ctx, tx, tenantID, *m.OpenIncidentID, next.Successes, at); err != nil {
-				return err
+			inc, resolved, err := resolve(ctx, tx, tenantID, *m.OpenIncidentID, next.Successes, at)
+			if err != nil {
+				return nil, err
+			}
+			if resolved {
+				change = &Change{TenantID: tenantID, IncidentID: inc.ID, Title: inc.Title, Monitor: m.Name,
+					Public: inc.Public, StartedAt: inc.StartedAt, At: at}
 			}
 		}
 		m.OpenIncidentID = nil
 	}
-	return store.SaveMonitorState(ctx, tx, m)
+	return change, store.SaveMonitorState(ctx, tx, m)
 }
 
 // resolve closes an automatic incident when its monitor recovers, unless someone already resolved
-// it by hand.
-func resolve(ctx context.Context, tx pgx.Tx, tenantID, incidentID string, successes int, at time.Time) error {
+// it by hand. It reports whether it did.
+func resolve(ctx context.Context, tx pgx.Tx, tenantID, incidentID string, successes int, at time.Time) (store.Incident, bool, error) {
 	inc, err := store.GetIncident(ctx, tx, incidentID)
 	if errors.Is(err, store.ErrNotFound) {
-		return nil
+		return inc, false, nil
 	}
 	if err != nil {
-		return err
+		return inc, false, err
 	}
 	if inc.Status == "resolved" {
-		return nil
+		return inc, false, nil
 	}
-	if _, err := store.SetIncidentStatus(ctx, tx, incidentID, "resolved", at); err != nil {
-		return fmt.Errorf("resolve incident: %w", err)
+	if inc, err = store.SetIncidentStatus(ctx, tx, incidentID, "resolved", at); err != nil {
+		return inc, false, fmt.Errorf("resolve incident: %w", err)
 	}
 	_, err = store.AddEvent(ctx, tx, tenantID, store.Event{
 		IncidentID: incidentID, At: at, Kind: "resolved", Public: true, Author: "Lighthouse",
 		Message: fmt.Sprintf("Recovered: %d checks in a row passed.", successes),
 	})
-	return err
+	return inc, err == nil, err
 }
 
 // Prune deletes old checks and visit records, expired sandboxes and expired sessions every hour.

@@ -5,6 +5,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/mail"
 	"net/url"
 	"strconv"
 	"strings"
@@ -30,6 +31,14 @@ type Config struct {
 	// CF-Connecting-IP behind Cloudflare), for rate limiting. Empty: use the connection's address.
 	// Only set it when every request passes through that proxy, or the header can be forged.
 	ClientIPHeader string
+
+	// Email alerts when the owner's monitors open or resolve an incident. Off unless AlertTo is set.
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPPassword string
+	AlertFrom    string
+	AlertTo      []string
 
 	// SiteDir holds the portfolio's content: site.yaml, stories/ and media/. Empty: no content.
 	SiteDir string
@@ -73,6 +82,11 @@ func Load(getenv func(string) string) (Config, error) {
 		DevLogin:           get("DEV_LOGIN", "false") == "true",
 		ClientIPHeader:     get("CLIENT_IP_HEADER", ""),
 		SiteDir:            get("SITE_DIR", ""),
+		SMTPHost:           get("SMTP_HOST", ""),
+		SMTPPort:           integer("SMTP_PORT", 587, 1, 65535),
+		SMTPUsername:       get("SMTP_USERNAME", ""),
+		SMTPPassword:       get("SMTP_PASSWORD", ""),
+		AlertFrom:          get("ALERT_FROM", ""),
 		OwnerName:          get("OWNER_NAME", "Lighthouse"),
 		CheckWorkers:       integer("CHECK_WORKERS", 8, 1, 256),
 		SandboxTTL:         time.Duration(integer("SANDBOX_TTL_MINUTES", 120, 5, 24*60)) * time.Minute,
@@ -85,6 +99,23 @@ func Load(getenv func(string) string) (Config, error) {
 			problems = append(problems, "OWNER_GITHUB_ID must be your numeric GitHub user ID")
 		}
 		c.OwnerGitHubID = id
+	}
+
+	if to := get("ALERT_TO", ""); to != "" {
+		for _, addr := range strings.Split(to, ",") {
+			parsed, err := mail.ParseAddress(strings.TrimSpace(addr))
+			if err != nil {
+				problems = append(problems, "ALERT_TO must be a comma-separated list of email addresses")
+				break
+			}
+			c.AlertTo = append(c.AlertTo, parsed.Address)
+		}
+		if c.SMTPHost == "" {
+			problems = append(problems, "ALERT_TO needs SMTP_HOST (and usually SMTP_USERNAME and SMTP_PASSWORD)")
+		}
+		if _, err := mail.ParseAddress(c.AlertFrom); err != nil {
+			problems = append(problems, "ALERT_TO needs ALERT_FROM, the address alerts come from")
+		}
 	}
 
 	switch c.Env {
@@ -113,6 +144,15 @@ func Load(getenv func(string) string) (Config, error) {
 		return Config{}, errors.New("invalid configuration:\n  " + strings.Join(problems, "\n  "))
 	}
 	return c, nil
+}
+
+// Domain is the host of the public URL, without a port: what ${DOMAIN} means in the site content.
+func (c Config) Domain() string {
+	u, err := url.Parse(c.PublicURL)
+	if err != nil {
+		return ""
+	}
+	return u.Hostname()
 }
 
 // SecureCookies reports whether cookies should be marked Secure (served over HTTPS).
