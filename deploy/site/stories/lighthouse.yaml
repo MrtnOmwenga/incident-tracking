@@ -9,13 +9,12 @@ problem:
   paragraphs:
     - >-
       A portfolio of live demos has two problems. Demos go down, and a recruiter who clicks a dead
-      link doesn't come back. And hosting is expensive: keeping several apps running around the
-      clock on a free tier means they sleep when idle, so the first visitor waits in front of a
-      blank page, or thinks it's broken.
+      link doesn't come back. And a demo dropped on someone without context is half wasted: they
+      don't know what to try, or why it was hard to build.
     - >-
       Lighthouse turns both into features. It watches every project and publishes what it finds,
-      including its failures, and it turns a sleeping demo's cold start into a short, readable
-      introduction.
+      including its failures, and every launch starts with a short technical introduction while it
+      confirms the demo is up, so nobody lands on a broken page.
 
 solution:
   title: How it works
@@ -35,8 +34,8 @@ solution:
       the binary, where the owner and sandbox visitors manage monitors and incidents. The owner signs in with GitHub (one
       account is admitted); visitors can create a throwaway sandbox with its own monitors, isolated
       from everything else by PostgreSQL row-level security. When a visitor launches a demo, the
-      launch page polls the demo's health address, which also wakes it, and opens the demo when it
-      answers.
+      launch page polls the demo's health address (which would also wake it, on a host that puts idle
+      apps to sleep) and opens the demo when it answers.
 
 quote: >-
   Every figure on these pages is measured by the site itself, and so is every outage.
@@ -98,9 +97,10 @@ limits:
   title: What it doesn't do yet
   paragraphs:
     - >-
-      Guided tours for demos and the production deployment (Terraform and k3s on Oracle Cloud's free tier, behind Cloudflare) are
-      the next phases. Aggregations are computed from raw checks on each request, which is fine at
-      this scale; daily rollups would be the first optimization.
+      The production deployment (Terraform for an Oracle Cloud ARM VM running k3s behind a
+      Cloudflare Tunnel, Kubernetes manifests applied by Flux) is written and validated in CI, and
+      goes live once the accounts are in place. Aggregations are computed from raw checks on each
+      request, which is fine at this scale; daily rollups would be the first optimization.
 
 numbers:
   - { value: "30 s", label: between checks }

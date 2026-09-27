@@ -19,6 +19,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/MrtnOmwenga/lighthouse/internal/alert"
 	"github.com/MrtnOmwenga/lighthouse/internal/auth"
 	"github.com/MrtnOmwenga/lighthouse/internal/config"
 	"github.com/MrtnOmwenga/lighthouse/internal/monitor"
@@ -68,12 +69,21 @@ func serve(ctx context.Context, log *slog.Logger) error {
 		return fmt.Errorf("owner tenant: %w", err)
 	}
 
-	content, err := site.Load(cfg.SiteDir)
+	content, err := site.Load(cfg.SiteDir, cfg.Domain())
 	if err != nil {
 		return err
 	}
 
 	scheduler := &monitor.Scheduler{Pool: pool, Prober: monitor.NewProber(), Workers: cfg.CheckWorkers, Log: log}
+	if len(cfg.AlertTo) > 0 {
+		notifier := &alert.Notifier{
+			Mailer: &alert.Mailer{Host: cfg.SMTPHost, Port: cfg.SMTPPort, Username: cfg.SMTPUsername, Password: cfg.SMTPPassword,
+				From: cfg.AlertFrom, To: cfg.AlertTo},
+			Tenant: owner, PublicURL: cfg.PublicURL, Log: log,
+		}
+		scheduler.Notify = notifier.Notify
+		log.Info("email alerts on", "to", len(cfg.AlertTo))
+	}
 	done := make(chan struct{}, 2)
 	go func() { scheduler.Run(ctx); done <- struct{}{} }()
 	go func() {
