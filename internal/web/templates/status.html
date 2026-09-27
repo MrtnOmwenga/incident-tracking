@@ -1,0 +1,120 @@
+{{template "head" (printf "Systems data · The Lighthouse")}}
+<meta http-equiv="refresh" content="60">
+<meta name="description" content="Live uptime, response times and incident reports for {{.Owner}}'s projects.">
+</head>
+<body>
+{{template "masthead" .}}
+<main id="main">
+<section class="wrap section grid border-bottom status-head">
+  <div class="span-8 stack">
+    <span class="kicker">Systems data</span>
+    <h1 class="banner-status"><span class="dot {{.Status.Overall}}" aria-hidden="true"></span>{{.Status.Overall.Label}}</h1>
+    <p class="standfirst">Every project is checked every 30 seconds. An incident opens after several failures in a row, and closes after several successes. Updated {{when .Now}}; this page refreshes every minute.</p>
+  </div>
+  <div class="span-4 stats align-end">
+    <div class="stat claret"><span class="k">Services watched</span><p class="v">{{len .Status.Monitors}}</p></div>
+    <div class="stat"><span class="k">Incidents, 14 days</span><p class="v">{{.Incidents14d}}</p></div>
+  </div>
+</section>
+
+{{with .Status.Active}}
+<section class="wrap section">
+  <h2 class="section-title">Ongoing</h2>
+  {{range .}}
+  <article class="report">
+    <span class="pill {{.Status}}">{{words .Status}} · {{.Severity}} severity</span>
+    <h3><a href="/status/incidents/{{.ID}}">{{.Title}}</a></h3>
+    {{with latest .Events}}<p>{{.Message}} <span class="muted sans">— {{ago .At}}</span></p>{{end}}
+    <p class="caption">Started {{when .StartedAt}} · {{duration .Incident $.Now}} so far</p>
+  </article>
+  {{end}}
+</section>
+{{end}}
+
+<section class="wrap section">
+  {{if not .Status.Monitors}}<p class="standfirst">Nothing is monitored yet.</p>{{else}}
+  <div class="table-wrap">
+  <table class="data wide">
+    <thead><tr>
+      <th scope="col">Service</th><th scope="col">Status</th>
+      <th scope="col" class="num">24 h</th><th scope="col" class="num">7 d</th><th scope="col" class="num">90 d</th>
+      <th scope="col" class="num">Median</th><th scope="col" class="num">95th pct</th>
+      <th scope="col" class="spark-cell wide">Response time, 24 h</th>
+    </tr></thead>
+    <tbody>
+      {{range .Status.Monitors}}
+      <tr>
+        <td class="name serif-name">{{.Name}}</td>
+        <td><span class="status {{.Health}}">● {{if eq .Health "up"}}Operational{{else if eq .Health "down"}}Down{{else}}Checking{{end}}</span></td>
+        <td class="num">{{pct .Uptime24h}}</td><td class="num">{{pct .Uptime7d}}</td><td class="num strong">{{pct .Uptime90d}}</td>
+        <td class="num">{{ms .P50}}</td><td class="num">{{ms .P95}}</td>
+        <td class="spark-cell wide">{{sparkline . $.Now}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{end}}
+</section>
+
+{{with .Status.Monitors}}
+<section class="wrap section grid">
+  <div class="span-8">
+    <h2 class="section-title rule-top">Daily uptime, 90 days</h2>
+    {{range .}}
+    <div class="history-row">
+      <div class="top"><span class="name">{{.Name}}</span><span class="muted">{{pct .Uptime90d}} over 90 days</span></div>
+      <div class="bars" role="img" aria-label="{{.Name}}: daily uptime over the last 90 days, {{pct .Uptime90d}}">
+        {{range .Days}}<span class="{{.Bar}}" title="{{.Title}}"></span>{{end}}
+      </div>
+      <div class="axis"><span>90 days ago</span><span>Today</span></div>
+    </div>
+    {{end}}
+    <p class="legend legend-space"><span><i></i>No problems</span><span><i class="fair"></i>Some failed checks</span><span><i class="bad"></i>Outage</span><span><i class="none"></i>No data</span></p>
+  </div>
+  <aside class="span-4 panel align-start">
+    <p class="label">How to read this page</p>
+    <p class="now">Uptime is the share of passing checks, rounded down, so anything short of perfect never shows 100%. Median and 95th percentile are the response times of passing checks over the last 24 hours.</p>
+  </aside>
+</section>
+{{end}}
+
+{{with .Readership}}
+<section class="wrap section grid">
+  <div class="span-8">
+    <h2 class="section-title rule-top">Readership, 30 days</h2>
+    <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th scope="col">Project</th><th scope="col" class="num">Readers</th><th scope="col" class="num">Median reading time</th><th scope="col" class="num">Demos opened</th></tr></thead>
+      <tbody>
+        {{range .}}
+        <tr><td class="name serif-name">{{.Name}}</td>
+          {{if .Suppressed}}<td class="num muted" colspan="3">fewer than 5 readers</td>
+          {{else}}<td class="num">{{.Visitors}}</td><td class="num">{{minutes .MedianMinutes}}</td><td class="num">{{.Opens}}</td>{{end}}
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <aside class="span-4 panel align-start">
+    <p class="label">Counted without cookies</p>
+    <p class="now">Readers are counted without cookies or stored IP addresses, and anything under five is hidden. <a href="/privacy">How it works</a>.</p>
+  </aside>
+</section>
+{{end}}
+
+<section class="wrap section">
+  <h2 class="section-title rule-top">Incident reports, 14 days</h2>
+  {{range .Status.Recent}}
+  <article class="report">
+    <span class="caption">{{when .StartedAt}} · resolved after {{duration .Incident $.Now}}</span>
+    <h3><a href="/status/incidents/{{.ID}}">{{.Title}}</a></h3>
+    {{with latest .Events}}<p>{{.Message}}</p>{{end}}
+  </article>
+  {{else}}
+  <p class="caption report-empty">No incidents in the last 14 days.</p>
+  {{end}}
+</section>
+</main>
+{{template "foot" .}}

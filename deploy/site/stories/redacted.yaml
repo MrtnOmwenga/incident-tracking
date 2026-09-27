@@ -1,0 +1,130 @@
+read_minutes: 8
+updated: September 2026
+figure_caption: >-
+  One briefing, three screens. The Director sees everything; the Analyst and the Intern get copies
+  the server has redacted for their clearance.
+
+problem:
+  title: The problem
+  paragraphs:
+    - >-
+      Most document editors hide things the easy way: the whole document is sent to your browser,
+      and the parts you shouldn't see are covered up. Anyone who opens the developer tools can read
+      them. Permissions are checked when you open the document, and rarely again.
+    - >-
+      Redacted asks for something harder. In a multi-tenant system where documents are shared
+      between people with different clearance levels, the text you aren't cleared for should never
+      reach your browser at all, even while several people edit the same document in real time.
+      And when someone loses access, that should take effect before their next keystroke, not when
+      they next reload the page.
+
+solution:
+  title: How it works
+  paragraphs:
+    - >-
+      Redacted is the live demo of RBAC-API, a multi-tenant access-control service. A NestJS API
+      and a Hocuspocus collaboration server share one PostgreSQL database. Every tenant table has
+      forced row-level security, and the API connects as a role that owns nothing, so a query that
+      forgets its tenant filter still can't see another organization's rows.
+    - >-
+      Hiding is part of the document's structure. Each section of a briefing is its own
+      collaborative document on the server; a member who isn't cleared for a section is never
+      connected to it, and the API sends a redaction bar in its place. Words inside a sentence are
+      classified with a formatting mark, and readers below that mark get a copy the server writes
+      for their level.
+    - >-
+      Permission changes reach connections that are already open. Every change announces itself
+      with a PostgreSQL notification inside its own transaction, and every server re-checks its
+      live connections when it arrives.
+
+quote: >-
+  The black bars aren't a disguise laid over the text. The text itself never reaches your browser,
+  and a test reads every network frame to prove it.
+
+steps:
+  caption: What happens in the milliseconds after a Director clicks "demote". Fail closed first, then recover.
+  items:
+    - { title: Lock, body: "Before the change is saved, every open connection in the organization turns read-only." }
+    - { title: Commit and announce, body: "The change commits, and a database notification tells every server instance." }
+    - { title: Re-check, body: "Each connection gets its new access: edit, read-only, or disconnected." }
+    - { title: Recover, body: "Editors who kept their access are restored, and anything they typed during the lock is resent." }
+
+decisions:
+  - title: Hide by structure, not by filtering
+    choice: One collaborative (Yjs) document per section, instead of one document with hidden parts filtered out.
+    why: >-
+      In a CRDT every character has an identity and every edit refers to its neighbours. A copy
+      missing some characters can't apply later edits, so copies drift, or the edit history leaks
+      the hidden text. The only safe unit of hiding is a whole document.
+    trade_off: Moving text between sections is a copy and a delete, so a concurrent edit to the moved text isn't carried along.
+  - title: Classify words by projection
+    choice: >-
+      "Mark to classify, project to read": cleared editors mark words like formatting; everyone
+      else reads a server-written copy for their level.
+    why: >-
+      Of three designs considered, making each classified phrase its own document needed a
+      complex editor, and encrypting phrases per level moved the problem to key management and
+      leaked exact lengths. Projections keep the guarantee with a simple UI.
+    trade_off: A member who can't see every word of a section can't edit that section. It mirrors how classified paperwork works.
+  - title: Let the database enforce tenancy
+    choice: Forced row-level security keyed on a transaction-local tenant, with composite foreign keys.
+    why: >-
+      Application checks are one forgotten WHERE clause away from a leak. With RLS, the database
+      refuses cross-tenant reads and writes even if the code is wrong, and tests prove it by
+      querying as the application's role.
+    trade_off: Every request runs in a transaction that sets the tenant first; queries before the tenant is known go through a few narrow database functions.
+  - title: Fail closed on permission changes
+    choice: Lock connections before a change commits, then re-check and recover.
+    why: >-
+      The first version re-checked after the commit, which left a window where a demoted editor's
+      edit was accepted. A test caught it every time. Locking first closes the window; the recovery
+      step means legitimate editors lose nothing.
+    trade_off: With several server instances, only the one handling the change locks before the commit; the others lock milliseconds later, when the notification arrives.
+  - title: Authority comes from the database, not the token
+    choice: A token only says who you are; your role and status are loaded inside each request's transaction.
+    why: A role change or a disabled account applies to tokens already issued, immediately.
+    trade_off: One indexed database lookup per request, inside a transaction the request needs anyway.
+  - title: Report a rounded length for hidden text
+    choice: Redaction bars are sized to the hidden text, rounded up to 40 characters.
+    why: The page keeping its shape is what makes redaction legible to a reader.
+    trade_off: It reveals roughly how much is hidden, never exactly how much.
+
+testing:
+  title: How it is tested
+  paragraphs:
+    - >-
+      603 tests run against a real PostgreSQL database in containers. An authorization matrix of
+      441 requests is generated from the policy itself (eight kinds of caller, every action, own
+      department, other department, other organization), so every endpoint is shown to enforce
+      exactly the published permission table.
+    - >-
+      Realtime tests use real WebSocket clients: demotion mid-session, revoked shares, edits refused
+      during a re-check and recovered afterwards. A browser test records every HTTP response and
+      WebSocket frame an uncleared user receives and checks the hidden text is in none of them. The
+      policy, tokens and audit chain have a 100% mutation score, and a k6 load test enforces a
+      latency budget in CI.
+    - >-
+      The important tests were checked to fail when the protection they cover is removed.
+
+limits:
+  title: What it doesn't do yet
+  paragraphs:
+    - >-
+      Across several server instances, the lock-before-commit guarantee holds only on the instance
+      that handled the change. A demoted editor's refused edits stay on their own screen until they
+      reload. Long-lived documents would benefit from periodic compaction of their edit history.
+
+numbers:
+  - { value: "603", label: automated tests }
+  - { value: "441", label: requests in the authorization matrix }
+  - { value: "100%", label: "mutation score, security modules" }
+  - { value: "100 ms", label: to rebuild a redacted copy }
+
+fact_file:
+  - { label: What it is, value: A multi-tenant access-control API with a live collaborative demo }
+  - { label: Role, value: "Sole engineer: design, build and tests" }
+  - { label: Stack, value: "NestJS · PostgreSQL · Yjs · Hocuspocus · React" }
+  - { label: Security, value: "Row-level security · hash-chained audit log" }
+  - { label: Tests, value: "603 · Testcontainers · Playwright · Stryker · k6" }
+
+call_to_action: Demote an agent while they type, and watch the words vanish.
