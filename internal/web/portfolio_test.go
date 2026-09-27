@@ -82,7 +82,7 @@ numbers: [{ value: "603", label: tests }]
 			t.Fatal(err)
 		}
 	}
-	s, err := site.Load(dir)
+	s, err := site.Load(dir, "example.dev")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestPortfolioPages(t *testing.T) {
 // The content that ships renders on every page, with no template errors and no inline styles.
 func TestTheShippedSiteRenders(t *testing.T) {
 	t.Parallel()
-	content, err := site.Load("../../deploy/site")
+	content, err := site.Load("../../deploy/site", "example.dev")
 	if err != nil {
 		t.Fatal(err)
 	}

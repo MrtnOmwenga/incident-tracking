@@ -1,0 +1,35 @@
+#cloud-config
+# Installs k3s from its release binary, checked against the release's own checksum. Traefik and
+# the service load balancer are disabled: nothing is exposed on the host, and cloudflared reaches
+# services inside the cluster directly.
+package_update: true
+package_upgrade: true
+packages: [curl, unattended-upgrades]
+
+write_files:
+  - path: /etc/rancher/k3s/config.yaml
+    content: |
+      write-kubeconfig-mode: "0600"
+      disable: [traefik, servicelb]
+      secrets-encryption: true
+      protect-kernel-defaults: true
+  - path: /etc/sysctl.d/90-kubelet.conf
+    content: |
+      vm.panic_on_oom=0
+      vm.overcommit_memory=1
+      kernel.panic=10
+      kernel.panic_on_oops=1
+
+runcmd:
+  - sysctl --system
+  - |
+    set -eu
+    v="${k3s_version}"
+    base="https://github.com/k3s-io/k3s/releases/download/$${v}"
+    cd /tmp
+    curl -fsSLo k3s-arm64 "$${base}/k3s-arm64"
+    curl -fsSLo sha256sum-arm64.txt "$${base}/sha256sum-arm64.txt"
+    grep ' k3s-arm64$' sha256sum-arm64.txt | sha256sum -c -
+    install -m 0755 k3s-arm64 /usr/local/bin/k3s
+    curl -fsSLo install.sh https://get.k3s.io
+    INSTALL_K3S_SKIP_DOWNLOAD=true INSTALL_K3S_VERSION="$${v}" sh install.sh

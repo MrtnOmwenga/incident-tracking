@@ -8,3 +8,7 @@ coverage.out
 /console/node_modules/
 /console/test-results/
 /console/playwright-report/
+/deploy/terraform/.terraform/
+/deploy/terraform/*.tfstate*
+/deploy/terraform/terraform.tfvars
+/deploy/terraform/backend.hcl
