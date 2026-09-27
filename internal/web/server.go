@@ -24,6 +24,8 @@ import (
 
 	"github.com/MrtnOmwenga/lighthouse/internal/auth"
 	"github.com/MrtnOmwenga/lighthouse/internal/config"
+	"github.com/MrtnOmwenga/lighthouse/internal/hub"
+	"github.com/MrtnOmwenga/lighthouse/internal/monitor"
 	"github.com/MrtnOmwenga/lighthouse/internal/store"
 )
 
@@ -40,6 +42,8 @@ type Server struct {
 	Log         *slog.Logger
 	OwnerTenant string // whose monitors the public status page shows
 	Now         func() time.Time
+	Catalog     hub.Catalog    // the projects on the hub
+	Readiness   *hub.Readiness // wakes demos and reports when they're up
 
 	pages     *template.Template
 	sandboxes *limiter // new sandboxes per client
@@ -49,6 +53,7 @@ type Server struct {
 func New(cfg config.Config, pool *pgxpool.Pool, authn *auth.Service, log *slog.Logger, ownerTenant string) *Server {
 	return &Server{
 		Config: cfg, Pool: pool, Auth: authn, Log: log, OwnerTenant: ownerTenant, Now: time.Now,
+		Readiness: hub.NewReadiness(monitor.NewProber()),
 		pages:     template.Must(template.New("").Funcs(funcs).ParseFS(templateFS, "templates/*.html")),
 		sandboxes: newLimiter(rate.Every(10*time.Minute), 3),
 		writes:    newLimiter(rate.Every(200*time.Millisecond), 20),
@@ -62,9 +67,13 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /readyz", s.ready)
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/status", http.StatusFound) })
+	// Public: the hub.
+	mux.HandleFunc("GET /{$}", s.hubPage)
+	mux.HandleFunc("GET /go/{slug}", s.launchPage)
+	mux.HandleFunc("GET /api/projects", s.listProjects)
+	mux.HandleFunc("GET /api/projects/{slug}/ready", s.projectReady)
 
-	// Public.
+	// Public: status.
 	mux.HandleFunc("GET /status", s.statusPage)
 	mux.HandleFunc("GET /status/incidents/{id}", s.incidentPage)
 	mux.HandleFunc("GET /api/status", s.publicStatus)
@@ -238,7 +247,7 @@ func readJSON(w http.ResponseWriter, r *http.Request, v any) error {
 func securityHeaders(cfg config.Config, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; img-src 'self' data:; script-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+		h.Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'; script-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")

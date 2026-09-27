@@ -18,6 +18,7 @@ import (
 
 	"github.com/MrtnOmwenga/lighthouse/internal/auth"
 	"github.com/MrtnOmwenga/lighthouse/internal/config"
+	"github.com/MrtnOmwenga/lighthouse/internal/hub"
 	"github.com/MrtnOmwenga/lighthouse/internal/store"
 	"github.com/MrtnOmwenga/lighthouse/internal/testdb"
 	"github.com/MrtnOmwenga/lighthouse/internal/web"
@@ -28,19 +29,23 @@ func TestMain(m *testing.M) { testdb.Main(m) }
 const ownerGitHubID = 4242
 
 type env struct {
-	t      *testing.T
-	db     testdb.DB
-	url    string
-	owner  string // owner tenant
-	github *httptest.Server
+	catalog hub.Catalog
+	t       *testing.T
+	db      testdb.DB
+	url     string
+	owner   string // owner tenant
+	github  *httptest.Server
 }
 
 // start runs Lighthouse against a fresh database, with a fake GitHub that knows two users:
 // the owner (code "owner") and a stranger (code "stranger").
-func start(t *testing.T, tweak func(*config.Config)) *env {
+func start(t *testing.T, tweak func(*config.Config), catalog ...hub.Catalog) *env {
 	t.Helper()
 	db := testdb.New(t)
 	e := &env{t: t, db: db}
+	if len(catalog) > 0 {
+		e.catalog = catalog[0]
+	}
 	e.github = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/login/oauth/access_token":
@@ -84,7 +89,9 @@ func start(t *testing.T, tweak func(*config.Config)) *env {
 		t.Fatal(err)
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	handler = web.New(cfg, db.App, auth.New(db.App, cfg), log, e.owner).Handler()
+	srv2 := web.New(cfg, db.App, auth.New(db.App, cfg), log, e.owner)
+	srv2.Catalog = e.catalog
+	handler = srv2.Handler()
 	return e
 }
 

@@ -17,8 +17,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/MrtnOmwenga/lighthouse/internal/auth"
 	"github.com/MrtnOmwenga/lighthouse/internal/config"
+	"github.com/MrtnOmwenga/lighthouse/internal/hub"
 	"github.com/MrtnOmwenga/lighthouse/internal/monitor"
 	"github.com/MrtnOmwenga/lighthouse/internal/store"
 	"github.com/MrtnOmwenga/lighthouse/internal/web"
@@ -65,6 +68,11 @@ func serve(ctx context.Context, log *slog.Logger) error {
 		return fmt.Errorf("owner tenant: %w", err)
 	}
 
+	catalog, err := hub.Load(cfg.ProjectsFile)
+	if err != nil {
+		return err
+	}
+
 	scheduler := &monitor.Scheduler{Pool: pool, Prober: monitor.NewProber(), Workers: cfg.CheckWorkers, Log: log}
 	done := make(chan struct{}, 2)
 	go func() { scheduler.Run(ctx); done <- struct{}{} }()
@@ -75,7 +83,7 @@ func serve(ctx context.Context, log *slog.Logger) error {
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           web.New(cfg, pool, auth.New(pool, cfg), log, owner).Handler(),
+		Handler:           handler(cfg, pool, log, owner, catalog),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -98,6 +106,12 @@ func serve(ctx context.Context, log *slog.Logger) error {
 	<-done
 	<-done
 	return err
+}
+
+func handler(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger, owner string, catalog hub.Catalog) http.Handler {
+	srv := web.New(cfg, pool, auth.New(pool, cfg), log, owner)
+	srv.Catalog = catalog
+	return srv.Handler()
 }
 
 func migrate(ctx context.Context) error {

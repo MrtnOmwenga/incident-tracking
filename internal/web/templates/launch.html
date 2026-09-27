@@ -1,0 +1,47 @@
+{{template "head" (printf "Starting %s" .Project.Name)}}
+<script src="/static/launch.js" defer></script>
+</head>
+<body>
+{{template "brand" .}}
+{{with .Project}}
+<main class="wrap launch" data-launch data-slug="{{.Slug}}" data-demo="{{.Demo}}" data-name="{{.Name}}" {{with .Tour}}data-tour="{{.}}"{{end}}>
+  <section class="waking card" aria-live="polite">
+    <span class="spinner" aria-hidden="true"></span>
+    <div>
+      <p class="launch-state" data-state>Starting {{.Name}}…</p>
+      <p class="muted" data-detail>Demos sleep when nobody is using them, and waking one can take up to a minute. Here's what you're about to see.</p>
+    </div>
+    <button type="button" class="button" data-skip hidden>Skip intro</button>
+  </section>
+
+  <section class="intro card" aria-roledescription="carousel" aria-label="Introduction to {{.Name}}">
+    <div class="progress" aria-hidden="true"><span data-progress></span></div>
+    <ol class="slides">
+      {{$n := len .Intro}}
+      {{range $i, $s := .Intro}}
+      <li class="slide" aria-roledescription="slide" aria-label="{{inc $i}} of {{$n}}">
+        <p class="step">{{inc $i}} / {{$n}}</p>
+        <h1>{{$s.Title}}</h1>
+        <p>{{$s.Body}}</p>
+      </li>
+      {{end}}
+      <li class="slide final" aria-label="Ready">
+        <p class="step">{{.Name}}</p>
+        <h1 data-final-title>Ready when you are</h1>
+        <p class="waiting" data-waiting><span class="spinner small" aria-hidden="true"></span> Still starting. It will open as soon as it's up.</p>
+        <p class="choices">
+          <a class="button primary" href="{{.Demo}}" data-open>Open {{.Name}}</a>
+          {{with .Tour}}<a class="button" href="{{.}}" data-tour-link>Take the guided tour</a>{{end}}
+        </p>
+      </li>
+    </ol>
+    <nav class="controls" aria-label="Introduction">
+      <button type="button" class="button" data-prev aria-label="Previous">←</button>
+      <span class="dots" data-dots></span>
+      <button type="button" class="button" data-next aria-label="Next">→</button>
+    </nav>
+  </section>
+  <p class="muted back"><a href="/">← All projects</a>{{with .Repo}} · <a href="{{.}}" rel="noopener">Code</a>{{end}}</p>
+</main>
+{{end}}
+{{template "foot"}}
