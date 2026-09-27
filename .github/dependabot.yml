@@ -5,6 +5,11 @@ updates:
     schedule: { interval: weekly }
     groups:
       go: { patterns: ['*'] }
+  - package-ecosystem: npm
+    directory: /console
+    schedule: { interval: weekly }
+    groups:
+      console: { patterns: ['*'] }
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }

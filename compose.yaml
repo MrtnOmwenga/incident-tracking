@@ -40,6 +40,7 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       OWNER_GITHUB_ID: ${OWNER_GITHUB_ID:-}
       CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-}
+      SANDBOX_LIMIT_PER_HOUR: ${SANDBOX_LIMIT_PER_HOUR:-6}
       SITE_DIR: /site
     volumes:
       - ${SITE_DIR:-./deploy/site}:/site:ro,z

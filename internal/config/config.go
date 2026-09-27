@@ -37,6 +37,7 @@ type Config struct {
 	OwnerName     string        // shown on the public status page
 	CheckWorkers  int           // concurrent checks
 	SandboxTTL    time.Duration // how long a visitor's sandbox lives
+	SandboxLimit  int           // new sandboxes per client per hour
 	RetentionDays int           // how long check results are kept
 }
 
@@ -75,6 +76,7 @@ func Load(getenv func(string) string) (Config, error) {
 		OwnerName:          get("OWNER_NAME", "Lighthouse"),
 		CheckWorkers:       integer("CHECK_WORKERS", 8, 1, 256),
 		SandboxTTL:         time.Duration(integer("SANDBOX_TTL_MINUTES", 120, 5, 24*60)) * time.Minute,
+		SandboxLimit:       integer("SANDBOX_LIMIT_PER_HOUR", 6, 1, 100000),
 		RetentionDays:      integer("RETENTION_DAYS", 90, 1, 3650),
 	}
 	if owner := get("OWNER_GITHUB_ID", "0"); owner != "0" {
