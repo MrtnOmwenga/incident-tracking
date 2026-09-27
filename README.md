@@ -36,6 +36,20 @@ the monitoring in a sandbox, without an account.
 
 ![On a phone: the front page, a story and the systems data](docs/phone.png)
 
+**The console** (`/console`)
+
+- **A sandbox for anyone:** one click, no account, three simulated sites. Switch one to *Down*,
+  watch an incident open by itself, post updates (public or internal), switch it back and watch it
+  close. It is a private tenant, isolated by row-level security, and expires after two hours.
+- **The owner's side:** real HTTP monitors, incidents, and *Readers*: the analytics report, with a
+  maker for `?ref=` links (one per job application).
+- A small Vue 3 and TypeScript app, built into the Go binary and held to the same Content Security
+  Policy as the rest of the site (no inline scripts or styles).
+
+| The sandbox's monitors | An incident |
+|---|---|
+| ![Monitors with Up, Slow, Flaky and Down switches](docs/console-monitors.png) | ![An incident's timeline and controls](docs/console-incident.png) |
+
 **Monitoring**
 
 - **Checks sites** over HTTP on a schedule: status code range, expected text and response time, recording
@@ -52,8 +66,6 @@ the monitoring in a sandbox, without an account.
 - **Visit analytics without cookies** ([how it works](#privacy-friendly-analytics)): which pages
   and projects are read, for how long, and which demos are opened; private `?ref=` tags show when a
   link sent with a job application is opened, and what that visitor went on to read.
-- **A sandbox for visitors:** one click creates a private, throwaway workspace with simulated sites
-  to break and fix (`up`, `slow`, `flaky`, `down`), and it expires after two hours.
 - **The owner signs in with GitHub.** Only one GitHub account is admitted.
 
 ## Privacy-friendly analytics
@@ -112,8 +124,13 @@ go test -race ./...
 - The important tests have been checked to fail when the protection they cover is removed
   (the RLS policy, atomic claiming, the origin check, the owner check, private-incident hiding).
 
-CI runs gofmt, `go vet`, staticcheck, the tests with the race detector, fuzzing, govulncheck,
-gitleaks, CodeQL, a Trivy scan of the image, and a Docker Compose smoke test.
+- **The console:** type-checked, unit-tested (Vitest), and driven end to end in a real browser
+  (Playwright) against the running stack: break a site, watch the incident open and close; no
+  sideways scrolling at phone width; sandboxes isolated from each other and from the owner's area.
+
+CI runs gofmt, `go vet`, staticcheck, the Go tests with the race detector, fuzzing, govulncheck,
+the console's type check, unit tests, build and npm audit, gitleaks, CodeQL, a Trivy scan of the
+image, and the compose stack with the console's browser tests.
 
 ## Run it
 
@@ -141,6 +158,7 @@ internal/status      status page data and the SVG sparkline
 internal/site        the portfolio content (profile, projects, stories) and demo readiness
 internal/auth        sessions, GitHub OAuth, sandboxes
 internal/web         routes, middleware, HTML templates, the JSON API
+console/             the console: Vue 3, TypeScript, Vite; Vitest and Playwright
 ```
 
 Choices worth explaining:
@@ -159,6 +177,5 @@ Choices worth explaining:
 
 ## Roadmap
 
-- A console for the sandbox and the owner
 - Guided tutorials for demos that need one
 - Deployment with Terraform and k3s on Oracle Cloud's free tier, behind Cloudflare

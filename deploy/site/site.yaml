@@ -251,8 +251,30 @@ projects:
       - { label: Language, value: Go }
       - { label: Tests, value: "race, fuzz, property" }
     repo: https://github.com/MrtnOmwenga/lighthouse
+    demo: /console/
     monitor: lighthouse
-    no_demo_note: You're using it. The systems page is the live part.
+    intro:
+      - kicker: The sandbox
+        title: Your own copy of the monitor
+        plain: You get three pretend websites to watch, all yours, gone in two hours. No account needed.
+        body: >-
+          A throwaway tenant, isolated from every other visitor by PostgreSQL row-level security,
+          seeded with simulated sites. The sandbox never sends traffic to real addresses.
+        facts: [{ label: to set up, value: 1 click }, { label: before it disappears, value: 2 hours }]
+      - kicker: Break something
+        title: Take a site down and watch the monitor notice
+        plain: Switch a site to Down. Two failed checks later, an incident opens by itself.
+        body: >-
+          Each result goes through a small state machine with hysteresis: several failures in a
+          row open an incident, several successes close it, so one blip never pages anyone.
+        facts: [{ label: between checks, value: 10 s }, { label: failures to open an incident, value: "2" }]
+      - kicker: Run the incident
+        title: Post updates, then let it recover
+        plain: Write a public update or an internal note, then switch the site back and watch the incident close.
+        body: >-
+          Public updates appear on your status page; internal notes never do. Everything on the page
+          is server-rendered from the same data the console edits.
+        facts: [{ label: kinds of update, value: public · internal }]
 
   - slug: pair-bridge
     name: PairBridge

@@ -1,0 +1,51 @@
+/* The console builds on the site's stylesheet (/static/style.css: tokens, type, buttons, panels,
+   tables); these are the console's own pieces. */
+
+.console-main { flex: 1; padding-bottom: 40px; }
+.block { display: block; }
+.error { font-family: var(--sans); color: var(--bad); font-weight: 600; }
+.link-button { background: none; border: 0; padding: 8px 0; min-height: 44px; font: 600 15px var(--sans); color: var(--claret); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.view-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.masthead .nav button.button { padding: 8px 14px; min-height: 40px; }
+
+.sandbox-band { background: var(--claret); color: #fff; font-family: var(--sans); font-size: 15px; }
+.sandbox-band .wrap { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding-top: 9px; padding-bottom: 9px; }
+.sandbox-band .tag { font-weight: 700; letter-spacing: 0.1em; border: 1px solid rgba(255, 255, 255, 0.6); padding: 2px 8px; }
+
+.try-list { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 16px; line-height: 1.5; }
+
+/* Forms */
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; }
+.form-grid .span-all { grid-column: 1 / -1; }
+.form-grid label, label.inline { display: flex; flex-direction: column; gap: 6px; font: 600 14px var(--sans); color: var(--ink); }
+label.inline { flex-direction: row; align-items: center; gap: 10px; }
+.form-grid label.check { flex-direction: row; align-items: center; gap: 10px; font-weight: 500; }
+input, select, textarea { font: 16px var(--sans); color: var(--ink); background: #fffaf5; border: 1px solid var(--muted); padding: 10px 12px; min-height: 44px; border-radius: 0; }
+input[type="checkbox"] { min-height: auto; width: 20px; height: 20px; accent-color: var(--claret); }
+textarea { resize: vertical; font-family: var(--serif); font-size: 17px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--claret); outline-offset: 1px; }
+.link-out code { display: block; overflow-x: auto; white-space: nowrap; padding: 10px 12px; background: var(--paper); border: 1px dashed var(--muted); font-size: 14px; }
+
+/* Tables */
+.console-table td { vertical-align: top; padding-top: 12px; padding-bottom: 12px; }
+.console-table .name a { font-weight: 700; text-decoration: none; font-size: 16px; }
+.console-table .wrap-cell { white-space: normal; min-width: 220px; }
+
+/* Up / Slow / Flaky / Down */
+.mode-switch { display: inline-flex; border: 1px solid var(--ink); padding: 0; margin: 0; min-width: 0; }
+.mode-switch .mode { position: relative; display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; font: 600 14px var(--sans); cursor: pointer; border-left: 1px solid var(--ink); }
+.mode-switch .mode:first-of-type { border-left: 0; }
+.mode-switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.mode-switch .mode:has(input:focus-visible) { outline: 2px solid var(--claret); outline-offset: 2px; }
+.mode-switch .mode.on { background: var(--ink); color: var(--paper); }
+.mode-switch .mode.down.on { background: var(--bad); }
+.mode-switch .mode.flaky.on, .mode-switch .mode.slow.on { background: var(--fair); }
+.mode-switch:disabled { opacity: 0.5; }
+
+.chart-panel .spark.big { height: 90px; margin-top: 8px; }
+
+@media (max-width: 680px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .masthead .nav { flex-wrap: wrap; }
+  .mode-switch .mode { padding: 0 9px; }
+}

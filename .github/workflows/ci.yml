@@ -26,6 +26,22 @@ jobs:
         run: go test -race -count=1 -coverprofile=coverage.out ./...
       - run: go tool cover -func=coverage.out | tail -1
 
+  console:
+    name: Console (types, unit tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run: { working-directory: console }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 24, cache: npm, cache-dependency-path: console/package-lock.json }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
   fuzz:
     name: Fuzzing (short)
     runs-on: ubuntu-latest
@@ -63,7 +79,7 @@ jobs:
           exit-code: '1'
 
   smoke:
-    name: Compose smoke test
+    name: Compose smoke test and console in the browser
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -73,6 +89,7 @@ jobs:
           echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
           echo "APP_DB_PASSWORD=$(openssl rand -hex 16)" >> .env
           echo "DEV_LOGIN=true" >> .env
+          echo "SANDBOX_LIMIT_PER_HOUR=1000" >> .env
       - run: docker compose up --build -d --wait lighthouse
       - name: Status page, API and sandbox answer
         run: |
@@ -82,5 +99,16 @@ jobs:
           curl -fsS http://localhost:8080/api/status | grep -q '"overall"'
           curl -fsS -X POST -H "Origin: http://localhost:8080" -c jar http://localhost:8080/api/sandbox
           curl -fsS -b jar http://localhost:8080/api/monitors | grep -q Storefront
+      - uses: actions/setup-node@v7
+        with: { node-version: 24, cache: npm, cache-dependency-path: console/package-lock.json }
+      - name: Console end to end (Playwright)
+        working-directory: console
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with: { name: playwright-traces, path: console/test-results, retention-days: 7 }
       - if: failure()
         run: docker compose logs

@@ -2,3 +2,9 @@
 /lighthouse
 /bin/
 coverage.out
+# The console's build output; only the placeholder is committed.
+/internal/web/console/*
+!/internal/web/console/placeholder.html
+/console/node_modules/
+/console/test-results/
+/console/playwright-report/
