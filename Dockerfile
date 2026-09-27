@@ -1,6 +1,6 @@
 # Build the console, then a static binary with the console embedded, then ship the binary alone on
 # a distroless base: no shell, no package manager, runs as an unprivileged user.
-FROM docker.io/library/node:24-slim AS console
+FROM docker.io/library/node:26-slim AS console
 WORKDIR /src/console
 COPY console/package.json console/package-lock.json ./
 RUN npm ci
