@@ -6,6 +6,7 @@
 <title>{{.}}</title>
 <link rel="stylesheet" href="/static/style.css">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<script src="/static/a.js" defer></script>
 <link rel="preload" href="/static/fonts/newsreader.woff2" as="font" type="font/woff2" crossorigin>
 {{end}}
 
@@ -45,6 +46,7 @@
     {{with .LinkedIn}}<a href="{{.}}" rel="me noopener">LinkedIn</a>{{end}}
     {{with .GitHub}}<a href="{{.}}" rel="me noopener">GitHub</a>{{end}}
     {{end}}
+    <a href="/privacy">Privacy</a>
     <a href="https://github.com/MrtnOmwenga/lighthouse" rel="noopener">Source</a>
   </span>
 </div></footer>

@@ -36,6 +36,12 @@ var funcs = template.FuncMap{
 		return humanDuration(end.Sub(i.StartedAt))
 	},
 	"inc": func(i int) int { return i + 1 },
+	"minutes": func(m float64) string {
+		if m < 1 {
+			return "under a minute"
+		}
+		return fmt.Sprintf("%.0f min", m)
+	},
 	// figure selects an illustration and its size for the "figure" template.
 	"figure": func(kind, variant string) map[string]string {
 		return map[string]string{"Kind": kind, "Variant": variant}
@@ -122,6 +128,8 @@ type pageData struct {
 	Card  *card
 	Story *site.Story
 	Next  *card
+	// systems page
+	Readership []readershipRow
 	// incident page
 	Incident *status.Incident
 	// error page
@@ -158,7 +166,7 @@ func (s *Server) statusPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "public, max-age=15")
-	s.render(w, http.StatusOK, "status.html", pageData{Section: "status", Now: now, Status: page, Incidents14d: len(page.Active) + len(page.Recent)})
+	s.render(w, http.StatusOK, "status.html", pageData{Section: "status", Now: now, Status: page, Incidents14d: len(page.Active) + len(page.Recent), Readership: s.readership(r)})
 }
 
 func (s *Server) publicStatus(w http.ResponseWriter, r *http.Request) {

@@ -49,9 +49,30 @@ the monitoring in a sandbox, without an account.
 - **A public systems page** ([screenshot](docs/status.png)) rendered on the server: overall state,
   uptime over 24 hours, 7 and 90 days, 90 days of daily 24-hour response-time sparklines (SVG drawn in Go), median and 95th-percentile latency,
   and past incidents. Also available as JSON at `/api/status`.
+- **Visit analytics without cookies** ([how it works](#privacy-friendly-analytics)): which pages
+  and projects are read, for how long, and which demos are opened; private `?ref=` tags show when a
+  link sent with a job application is opened, and what that visitor went on to read.
 - **A sandbox for visitors:** one click creates a private, throwaway workspace with simulated sites
   to break and fix (`up`, `slow`, `flaky`, `down`), and it expires after two hours.
 - **The owner signs in with GitHub.** Only one GitHub account is admitted.
+
+## Privacy-friendly analytics
+
+- **No cookies, no local storage, no stored IP addresses.** A visitor is an HMAC of their IP address
+  and user agent, keyed with a random salt that exists for one UTC day and is then deleted: enough
+  to count unique readers and follow one visit across pages, not enough to recognise anyone the
+  next day or recover an IP. The API's database role can't read the salts; one narrow function
+  hands out today's.
+- **Signals are respected before anything is sent:** Global Privacy Control and Do Not Track stop
+  the script, and the server checks again. Bots and the signed-in owner aren't counted.
+- **Engaged time is measured by the server.** The page sends a heartbeat every 15 seconds only while
+  it is visible and in use; each heartbeat can add at most 20 seconds, measured from the previous
+  one on the server, so a client can't claim time that didn't pass.
+- **Public numbers hide small counts.** The systems page shows readers per project over 30 days;
+  anything under five is shown as "fewer than 5". The detailed report (pages, projects, `?ref=`
+  tags, referrers, devices) is the owner's alone, at `/api/analytics`.
+- **Tags don't spread:** a `?ref=` tag is read once, then removed from the address bar.
+- Records are deleted after 90 days. The rules are explained to visitors at `/privacy`.
 
 ## Security
 
@@ -76,7 +97,10 @@ go test -race ./...
   row-level security off as the app role.
 - **Property tests** (rapid) for the incident state machine over random check sequences, and for
   uptime rounding.
-- **Fuzzing** for monitor validation and the SVG sparkline.
+- **Fuzzing** for monitor validation, the SVG sparkline and analytics page paths.
+- **Analytics tests:** tagged visits attributed across pages; Global Privacy Control, Do Not Track,
+  bots and the owner never counted; engaged time capped by the server; events counted once;
+  public counts under five hidden; salts rotating daily and unreadable by the app role.
 - **Content tests:** the shipped site loads and validates, every page of it renders without
   template errors or inline styles (which the CSP would block), and no internal address appears in
   public output.
@@ -135,7 +159,6 @@ Choices worth explaining:
 
 ## Roadmap
 
-- Privacy-friendly visit analytics (no cookies, no stored IPs)
 - A console for the sandbox and the owner
 - Guided tutorials for demos that need one
 - Deployment with Terraform and k3s on Oracle Cloud's free tier, behind Cloudflare

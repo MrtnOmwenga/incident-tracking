@@ -22,6 +22,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/time/rate"
 
+	"github.com/MrtnOmwenga/lighthouse/internal/analytics"
 	"github.com/MrtnOmwenga/lighthouse/internal/auth"
 	"github.com/MrtnOmwenga/lighthouse/internal/config"
 	"github.com/MrtnOmwenga/lighthouse/internal/monitor"
@@ -44,6 +45,7 @@ type Server struct {
 	Now         func() time.Time
 	Site        *site.Site      // the portfolio's content
 	Readiness   *site.Readiness // wakes demos and reports when they're up
+	Analytics   *analytics.Recorder
 
 	pages     *template.Template
 	sandboxes *limiter // new sandboxes per client
@@ -55,6 +57,7 @@ func New(cfg config.Config, pool *pgxpool.Pool, authn *auth.Service, log *slog.L
 		Config: cfg, Pool: pool, Auth: authn, Log: log, OwnerTenant: ownerTenant, Now: time.Now,
 		Site:      &site.Site{Stories: map[string]*site.Story{}},
 		Readiness: site.NewReadiness(monitor.NewProber()),
+		Analytics: analytics.New(pool, ownerTenant, cfg.PublicURL),
 		pages:     template.Must(template.New("").Funcs(funcs).ParseFS(templateFS, "templates/*.html")),
 		sandboxes: newLimiter(rate.Every(10*time.Minute), 3),
 		writes:    newLimiter(rate.Every(200*time.Millisecond), 20),
@@ -73,6 +76,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /projects", s.projectsPage)
 	mux.HandleFunc("GET /projects/{slug}", s.storyPage)
 	mux.HandleFunc("GET /about", s.aboutPage)
+	mux.HandleFunc("GET /privacy", s.privacyPage)
 	mux.HandleFunc("GET /media/{name}", s.media)
 	mux.HandleFunc("GET /go/{slug}", s.launchPage)
 	mux.HandleFunc("GET /api/projects", s.listProjects)
@@ -101,6 +105,12 @@ func (s *Server) Handler() http.Handler {
 	}))
 	mux.HandleFunc("POST /api/sandbox", s.errs(s.createSandbox))
 	mux.HandleFunc("GET /api/me", s.signedIn(s.me))
+
+	// Visit analytics: collection is public; the report is the owner's alone.
+	mux.HandleFunc("POST /api/a/view", s.analyticsView)
+	mux.HandleFunc("POST /api/a/ping", s.analyticsPing)
+	mux.HandleFunc("POST /api/a/event", s.analyticsEvent)
+	mux.HandleFunc("GET /api/analytics", s.signedIn(s.analyticsReport))
 
 	// The console API: every query runs inside the caller's tenant.
 	mux.HandleFunc("GET /api/my-status", s.signedIn(s.myStatus))

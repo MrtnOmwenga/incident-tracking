@@ -205,7 +205,7 @@ func resolve(ctx context.Context, tx pgx.Tx, tenantID, incidentID string, succes
 	return err
 }
 
-// Prune deletes old checks, expired sandboxes and expired sessions every hour.
+// Prune deletes old checks and visit records, expired sandboxes and expired sessions every hour.
 func Prune(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger, keepChecks, keepSandboxes time.Duration) {
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
@@ -216,6 +216,13 @@ func Prune(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger, keepChecks
 			}
 		} else if n.Checks+n.Sandboxes+n.Sessions > 0 {
 			log.Info("pruned", "checks", n.Checks, "sandboxes", n.Sandboxes, "sessions", n.Sessions)
+		}
+		if views, err := store.PruneAnalytics(ctx, pool, keepChecks); err != nil {
+			if ctx.Err() == nil {
+				log.Error("pruning visits", "err", err)
+			}
+		} else if views > 0 {
+			log.Info("pruned", "page_views", views)
 		}
 		select {
 		case <-ctx.Done():

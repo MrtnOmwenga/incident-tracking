@@ -77,7 +77,11 @@
     buttons[index].fill.style.width = '0';
   }
 
+  const track = (event) => window.lighthouse && window.lighthouse.track(event);
+  document.querySelectorAll('[data-open]').forEach((a) => a.addEventListener('click', () => track('demo_open')));
+
   function open(url) {
+    track('demo_open');
     state.textContent = `Opening ${name}…`;
     location.assign(url);
   }
@@ -90,6 +94,7 @@
 
   function markReady() {
     ready = true;
+    track('demo_ready');
     readyAt = Date.now();
     root.classList.add('ready');
     band.hidden = false;
@@ -109,6 +114,7 @@
 
   skip.addEventListener('click', () => {
     takeControl();
+    if (!ready) track('intro_skip');
     if (ready && !tour) open(demo);
     else show(last);
   });
