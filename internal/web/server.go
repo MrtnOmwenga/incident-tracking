@@ -59,7 +59,7 @@ func New(cfg config.Config, pool *pgxpool.Pool, authn *auth.Service, log *slog.L
 		Readiness: site.NewReadiness(monitor.NewProber()),
 		Analytics: analytics.New(pool, ownerTenant, cfg.PublicURL),
 		pages:     template.Must(template.New("").Funcs(funcs).ParseFS(templateFS, "templates/*.html")),
-		sandboxes: newLimiter(rate.Every(10*time.Minute), 3),
+		sandboxes: newLimiter(rate.Limit(float64(max(cfg.SandboxLimit, 1))/3600), min(max(cfg.SandboxLimit, 1), 3)),
 		writes:    newLimiter(rate.Every(200*time.Millisecond), 20),
 	}
 }
@@ -105,6 +105,14 @@ func (s *Server) Handler() http.Handler {
 	}))
 	mux.HandleFunc("POST /api/sandbox", s.errs(s.createSandbox))
 	mux.HandleFunc("GET /api/me", s.signedIn(s.me))
+	mux.HandleFunc("GET /api/sign-in-options", s.signInOptions)
+	mux.HandleFunc("GET /api/session", s.session)
+
+	// The console: a single-page app, embedded in the binary.
+	mux.Handle("GET /console/", s.console())
+	mux.HandleFunc("GET /console", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/console/", http.StatusMovedPermanently)
+	})
 
 	// Visit analytics: collection is public; the report is the owner's alone.
 	mux.HandleFunc("POST /api/a/view", s.analyticsView)
@@ -144,7 +152,7 @@ func (s *Server) githubCallback(w http.ResponseWriter, r *http.Request) {
 	err := s.Auth.GitHubCallback(w, r)
 	switch {
 	case err == nil:
-		http.Redirect(w, r, "/", http.StatusFound)
+		http.Redirect(w, r, "/console/", http.StatusFound)
 	case errors.Is(err, auth.ErrNotOwner):
 		s.renderError(w, http.StatusForbidden, "This is Martin's console", "Only the owner can sign in here. You can still look around: the status page is public.")
 	default:
@@ -164,7 +172,28 @@ func (s *Server) createSandbox(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (s *Server) me(w http.ResponseWriter, r *http.Request, id auth.Identity) error {
-	return writeJSON(w, http.StatusOK, map[string]string{"role": id.Role, "login": id.Login})
+	return writeJSON(w, http.StatusOK, map[string]any{"role": id.Role, "login": id.Login, "expiresAt": id.Expires})
+}
+
+// session says who is signed in, or that nobody is, without treating "nobody" as an error.
+func (s *Server) session(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	id, ok := auth.FromContext(r.Context())
+	if !ok {
+		_ = writeJSON(w, http.StatusOK, map[string]any{"signedIn": false})
+		return
+	}
+	_ = writeJSON(w, http.StatusOK, map[string]any{"signedIn": true, "role": id.Role, "login": id.Login, "expiresAt": id.Expires})
+}
+
+// signInOptions tells the console which ways of signing in exist here.
+func (s *Server) signInOptions(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	_ = writeJSON(w, http.StatusOK, map[string]bool{
+		"github":  s.Config.GitHubClientID != "",
+		"dev":     s.Config.DevLogin && !s.Config.Production(),
+		"sandbox": true,
+	})
 }
 
 // signedIn wraps a handler that needs a session.

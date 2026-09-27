@@ -44,6 +44,7 @@ type Identity struct {
 	TenantID string
 	Role     string // owner or sandbox
 	Login    string // GitHub login for the owner; empty for sandboxes
+	Expires  time.Time
 }
 
 func (i Identity) Owner() bool { return i.Role == "owner" }
@@ -88,7 +89,7 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 		if c, err := r.Cookie(SessionCookie); err == nil && c.Value != "" {
 			sess, err := store.LookupSession(r.Context(), s.Pool, hashToken(c.Value))
 			if err == nil && time.Now().Before(sess.ExpiresAt) {
-				id := Identity{TenantID: sess.TenantID, Role: sess.Role}
+				id := Identity{TenantID: sess.TenantID, Role: sess.Role, Expires: sess.ExpiresAt}
 				if sess.GitHubLogin != nil {
 					id.Login = *sess.GitHubLogin
 				}
