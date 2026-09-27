@@ -1,2 +1,0 @@
-DROP TYPE IF EXISTS "Status";
-DROP TYPE IF EXISTS "Severity";

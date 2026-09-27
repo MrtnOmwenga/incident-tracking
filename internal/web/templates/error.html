@@ -1,0 +1,10 @@
+{{template "head" .Title}}
+</head>
+<body>
+{{template "brand" .Owner}}
+<main class="wrap narrow">
+  <h1>{{.Title}}</h1>
+  <p>{{.Message}}</p>
+  <p><a href="/status">Go to the status page</a></p>
+</main>
+{{template "foot"}}

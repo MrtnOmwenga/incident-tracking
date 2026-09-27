@@ -1,0 +1,226 @@
+package monitor
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"sync"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/MrtnOmwenga/lighthouse/internal/store"
+)
+
+// Scheduler finds monitors that are due, checks them with a bounded pool of workers, and records
+// the results. Several instances can run against one database: claiming a monitor is atomic, so
+// each check runs once.
+type Scheduler struct {
+	Pool    *pgxpool.Pool
+	Prober  *Prober
+	Workers int
+	Log     *slog.Logger
+	Tick    time.Duration // how often to look for due monitors (default 1s)
+}
+
+// Run checks due monitors until ctx is cancelled, then waits for checks in flight.
+func (s *Scheduler) Run(ctx context.Context) {
+	tick := s.Tick
+	if tick == 0 {
+		tick = time.Second
+	}
+	sem := make(chan struct{}, max(s.Workers, 1))
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	ticker := time.NewTicker(tick)
+	defer ticker.Stop()
+	for {
+		s.dispatch(ctx, sem, &wg)
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+// RunOnce checks everything due now and returns when those checks are recorded. Tests use it.
+func (s *Scheduler) RunOnce(ctx context.Context) int {
+	sem := make(chan struct{}, max(s.Workers, 1))
+	var wg sync.WaitGroup
+	n := s.dispatch(ctx, sem, &wg)
+	wg.Wait()
+	return n
+}
+
+// dispatch starts a check for each due monitor, as many at a time as there are workers, waiting
+// for a free worker when all are busy.
+func (s *Scheduler) dispatch(ctx context.Context, sem chan struct{}, wg *sync.WaitGroup) int {
+	due, err := store.DueMonitors(ctx, s.Pool, cap(sem)*4)
+	if err != nil {
+		if ctx.Err() == nil {
+			s.Log.Error("listing due monitors", "err", err)
+		}
+		return 0
+	}
+	started := 0
+	for _, d := range due {
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			return started
+		}
+		started++
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			if err := s.Check(ctx, d.TenantID, d.MonitorID); err != nil && ctx.Err() == nil {
+				s.Log.Error("check failed", "monitor", d.MonitorID, "err", err)
+			}
+		}()
+	}
+	return started
+}
+
+// Check claims one monitor, probes it outside any transaction (a probe can take up to 30 s), then
+// records the result and applies any state change in one transaction.
+func (s *Scheduler) Check(ctx context.Context, tenantID, monitorID string) error {
+	var m store.Monitor
+	err := store.WithTenant(ctx, s.Pool, tenantID, func(tx pgx.Tx) error {
+		var err error
+		m, err = store.ClaimMonitor(ctx, tx, monitorID)
+		return err
+	})
+	if errors.Is(err, store.ErrNotFound) {
+		return nil // another worker got there first, or it was paused or deleted
+	}
+	if err != nil {
+		return fmt.Errorf("claim: %w", err)
+	}
+
+	result := s.probe(ctx, m)
+	at := time.Now()
+	return store.WithTenant(ctx, s.Pool, tenantID, func(tx pgx.Tx) error {
+		return record(ctx, tx, tenantID, monitorID, result, at)
+	})
+}
+
+func (s *Scheduler) probe(ctx context.Context, m store.Monitor) Result {
+	if m.Kind == "simulated" {
+		return s.Prober.Simulated(m.SimulatedMode)
+	}
+	t := Target{
+		Timeout:      time.Duration(m.TimeoutMS) * time.Millisecond,
+		StatusMin:    m.ExpectedStatusMin,
+		StatusMax:    m.ExpectedStatusMax,
+		AllowPrivate: m.AllowPrivateNetwork,
+	}
+	if m.URL != nil {
+		t.URL = *m.URL
+	}
+	if m.ExpectedText != nil {
+		t.ExpectedText = *m.ExpectedText
+	}
+	return s.Prober.HTTP(ctx, t)
+}
+
+// record stores a check and folds it into the monitor's state, opening or resolving its automatic
+// incident. The monitor row is locked, so two results for one monitor can't interleave.
+func record(ctx context.Context, tx pgx.Tx, tenantID, monitorID string, r Result, at time.Time) error {
+	m, err := store.LockMonitor(ctx, tx, monitorID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil // deleted while the probe ran
+	}
+	if err != nil {
+		return err
+	}
+	c := store.Check{MonitorID: m.ID, At: at, OK: r.OK, LatencyMS: int(r.Latency.Milliseconds()), TLSExpiresAt: r.TLSExpiresAt}
+	if r.StatusCode != 0 {
+		c.StatusCode = &r.StatusCode
+	}
+	if r.Failure != "" {
+		f := string(r.Failure)
+		c.Failure = &f
+	}
+	if _, err := store.InsertCheck(ctx, tx, tenantID, c); err != nil {
+		return fmt.Errorf("insert check: %w", err)
+	}
+
+	next, transition := Next(
+		State{Health: Health(m.Health), Failures: m.ConsecutiveFailures, Successes: m.ConsecutiveSuccess},
+		r.OK,
+		Thresholds{Failure: m.FailureThreshold, Recovery: m.RecoveryThreshold},
+	)
+	m.Health, m.ConsecutiveFailures, m.ConsecutiveSuccess, m.LastCheckedAt = string(next.Health), next.Failures, next.Successes, &at
+
+	switch transition {
+	case Opened:
+		inc, err := store.CreateIncident(ctx, tx, tenantID, store.Incident{
+			MonitorID: &m.ID, Title: m.Name + " is down", Severity: "high", Automatic: true, Public: m.Public, StartedAt: at,
+		})
+		if err != nil {
+			return fmt.Errorf("open incident: %w", err)
+		}
+		if _, err := store.AddEvent(ctx, tx, tenantID, store.Event{
+			IncidentID: inc.ID, At: at, Kind: "opened", Public: true, Author: "Lighthouse",
+			Message: fmt.Sprintf("%d checks in a row failed (%s).", next.Failures, r.Failure),
+		}); err != nil {
+			return err
+		}
+		m.OpenIncidentID = &inc.ID
+	case Resolved:
+		if m.OpenIncidentID != nil {
+			if err := resolve(ctx, tx, tenantID, *m.OpenIncidentID, next.Successes, at); err != nil {
+				return err
+			}
+		}
+		m.OpenIncidentID = nil
+	}
+	return store.SaveMonitorState(ctx, tx, m)
+}
+
+// resolve closes an automatic incident when its monitor recovers, unless someone already resolved
+// it by hand.
+func resolve(ctx context.Context, tx pgx.Tx, tenantID, incidentID string, successes int, at time.Time) error {
+	inc, err := store.GetIncident(ctx, tx, incidentID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if inc.Status == "resolved" {
+		return nil
+	}
+	if _, err := store.SetIncidentStatus(ctx, tx, incidentID, "resolved", at); err != nil {
+		return fmt.Errorf("resolve incident: %w", err)
+	}
+	_, err = store.AddEvent(ctx, tx, tenantID, store.Event{
+		IncidentID: incidentID, At: at, Kind: "resolved", Public: true, Author: "Lighthouse",
+		Message: fmt.Sprintf("Recovered: %d checks in a row passed.", successes),
+	})
+	return err
+}
+
+// Prune deletes old checks, expired sandboxes and expired sessions every hour.
+func Prune(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger, keepChecks, keepSandboxes time.Duration) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		if n, err := store.Prune(ctx, pool, keepChecks, keepSandboxes); err != nil {
+			if ctx.Err() == nil {
+				log.Error("pruning", "err", err)
+			}
+		} else if n.Checks+n.Sandboxes+n.Sessions > 0 {
+			log.Info("pruned", "checks", n.Checks, "sandboxes", n.Sandboxes, "sessions", n.Sessions)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
