@@ -2,3 +2,6 @@
 .github
 .env
 *.md
+console/node_modules
+internal/web/console/assets
+internal/web/console/index.html
