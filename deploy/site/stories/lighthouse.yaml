@@ -27,6 +27,10 @@ solution:
       closes it after several successes, so one blip never pages anyone and a flapping site doesn't
       open an incident every minute.
     - >-
+      It also counts its readers without cookies: a visitor is a hash of their IP address keyed
+      with a salt that is deleted every day, browsers asking not to be tracked are skipped, and
+      public numbers under five are hidden.
+    - >-
       Everything is one Go binary with server-rendered pages. The owner signs in with GitHub (one
       account is admitted); visitors can create a throwaway sandbox with its own monitors, isolated
       from everything else by PostgreSQL row-level security. When a visitor launches a demo, the
@@ -90,8 +94,7 @@ limits:
   title: What it doesn't do yet
   paragraphs:
     - >-
-      Visit analytics, the console for the sandbox and owner, guided tours for demos, and the
-      production deployment (Terraform and k3s on Oracle Cloud's free tier, behind Cloudflare) are
+      The console for the sandbox and owner, guided tours for demos, and the production deployment (Terraform and k3s on Oracle Cloud's free tier, behind Cloudflare) are
       the next phases. Aggregations are computed from raw checks on each request, which is fine at
       this scale; daily rollups would be the first optimization.
 

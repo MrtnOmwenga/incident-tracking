@@ -79,6 +79,31 @@
 </section>
 {{end}}
 
+{{with .Readership}}
+<section class="wrap section grid">
+  <div class="span-8">
+    <h2 class="section-title rule-top">Readership, 30 days</h2>
+    <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th scope="col">Project</th><th scope="col" class="num">Readers</th><th scope="col" class="num">Median reading time</th><th scope="col" class="num">Demos opened</th></tr></thead>
+      <tbody>
+        {{range .}}
+        <tr><td class="name serif-name">{{.Name}}</td>
+          {{if .Suppressed}}<td class="num muted" colspan="3">fewer than 5 readers</td>
+          {{else}}<td class="num">{{.Visitors}}</td><td class="num">{{minutes .MedianMinutes}}</td><td class="num">{{.Opens}}</td>{{end}}
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <aside class="span-4 panel align-start">
+    <p class="label">Counted without cookies</p>
+    <p class="now">Readers are counted without cookies or stored IP addresses, and anything under five is hidden. <a href="/privacy">How it works</a>.</p>
+  </aside>
+</section>
+{{end}}
+
 <section class="wrap section">
   <h2 class="section-title rule-top">Incident reports, 14 days</h2>
   {{range .Status.Recent}}
