@@ -1,0 +1,131 @@
+# Redacted: the live demo of RBAC-API. Its data is disposable by design (demo agencies are deleted
+# after two hours), so it has no backups.
+apiVersion: v1
+kind: Service
+metadata:
+  name: redacted-postgres
+spec:
+  selector: { app: redacted-postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redacted-postgres
+spec:
+  serviceName: redacted-postgres
+  replicas: 1
+  selector:
+    matchLabels: { app: redacted-postgres }
+  template:
+    metadata:
+      labels: { app: redacted-postgres }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: postgres
+          image: docker.io/library/postgres:16-alpine
+          env:
+            - { name: POSTGRES_DB, value: rbac }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: redacted-db, key: owner-password } }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports: [{ containerPort: 5432 }]
+          readinessProbe:
+            exec: { command: [pg_isready, -U, postgres] }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: run, mountPath: /var/run/postgresql }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: run, emptyDir: {} }
+        - { name: tmp, emptyDir: {} }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 2Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redacted
+spec:
+  selector: { app: redacted }
+  ports: [{ port: 3000, targetPort: 3000 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redacted
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: redacted }
+  template:
+    metadata:
+      labels: { app: redacted }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      initContainers:
+        - name: migrate
+          image: ghcr.io/mrtnomwenga/rbac-api
+          args: [dist/database/migrate.js]
+          env:
+            - { name: MIGRATION_DATABASE_URL, value: "postgres://postgres@redacted-postgres:5432/rbac" }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: redacted-db, key: owner-password } }
+            - { name: DATABASE_URL, value: "postgres://rbac_app_login@redacted-postgres:5432/rbac" }
+            - name: APP_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: redacted-db, key: app-password } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+      containers:
+        - name: api
+          image: ghcr.io/mrtnomwenga/rbac-api
+          args: [dist/main.js]
+          env:
+            - { name: DATABASE_URL, value: "postgres://rbac_app_login@redacted-postgres:5432/rbac" }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: redacted-db, key: app-password } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: redacted-app, key: jwt-secret } }
+            - { name: DEMO_MODE, value: "true" }
+            - { name: RATE_LIMIT_PER_MINUTE, value: "300" }
+            - { name: LOG_LEVEL, value: info }
+          ports: [{ containerPort: 3000 }]
+          readinessProbe:
+            httpGet: { path: /health/ready, port: 3000 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health/ready, port: 3000 }
+            periodSeconds: 30
+            failureThreshold: 4
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }

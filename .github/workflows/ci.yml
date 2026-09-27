@@ -42,6 +42,51 @@ jobs:
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
 
+  deploy-config:
+    name: Deployment config (Terraform, Kubernetes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with: { terraform_version: 1.16.4 }
+      - name: Terraform format and validate
+        working-directory: deploy/terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+      - name: Kubernetes manifests render and validate
+        run: |
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform
+          kubectl kustomize deploy/k8s/production > rendered.yaml
+          ./kubeconform -strict -summary -kubernetes-version 1.34.0 rendered.yaml
+          ./kubeconform -strict -summary -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            deploy/k8s/flux/*.yaml
+      - name: Every container runs non-root, read-only, without capabilities
+        run: |
+          python3 - <<'PY'
+          import yaml, sys
+          bad = []
+          for d in yaml.safe_load_all(open('rendered.yaml')):
+              if not d: continue
+              spec = d.get('spec', {})
+              tpl = spec.get('template') or spec.get('jobTemplate', {}).get('spec', {}).get('template')
+              if not tpl: continue
+              ps = tpl['spec']
+              psc = ps.get('securityContext', {})
+              if not (psc.get('runAsNonRoot') and psc.get('seccompProfile', {}).get('type') == 'RuntimeDefault'):
+                  bad.append(f"{d['metadata']['name']}: pod security context")
+              for c in ps.get('initContainers', []) + ps['containers']:
+                  sc = c.get('securityContext', {})
+                  if not (sc.get('allowPrivilegeEscalation') is False and sc.get('readOnlyRootFilesystem') is True and sc.get('capabilities', {}).get('drop') == ['ALL']):
+                      bad.append(f"{d['metadata']['name']}/{c['name']}")
+          if bad:
+              sys.exit('not restricted: ' + ', '.join(bad))
+          print('every container is restricted')
+          PY
+
   fuzz:
     name: Fuzzing (short)
     runs-on: ubuntu-latest

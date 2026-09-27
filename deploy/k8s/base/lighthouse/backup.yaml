@@ -1,0 +1,59 @@
+# Nightly: dump the database and upload it to Object Storage (S3-compatible). The bucket deletes
+# dumps after 30 days (deploy/terraform/storage.tf).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup
+spec:
+  schedule: "17 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels: { app: lighthouse-backup }
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 70
+            runAsGroup: 70
+            seccompProfile: { type: RuntimeDefault }
+          initContainers:
+            - name: dump
+              image: docker.io/library/postgres:17-alpine
+              command: [sh, -c, 'pg_dump -h postgres -U lighthouse_owner -d lighthouse -Fc -f /backup/lighthouse-$(date -u +%Y%m%dT%H%M%SZ).dump']
+              env:
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: lighthouse-db, key: owner-password } }
+              securityContext: &restricted
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts: [{ name: backup, mountPath: /backup }]
+          containers:
+            - name: upload
+              image: docker.io/rclone/rclone:1.71
+              args: [copy, /backup, "store:$(BUCKET)/lighthouse", --s3-no-check-bucket]
+              env:
+                - { name: RCLONE_CONFIG_STORE_TYPE, value: s3 }
+                - { name: RCLONE_CONFIG_STORE_PROVIDER, value: Other }
+                - name: RCLONE_CONFIG_STORE_ENDPOINT
+                  valueFrom: { secretKeyRef: { name: lighthouse-backup, key: endpoint } }
+                - name: RCLONE_CONFIG_STORE_ACCESS_KEY_ID
+                  valueFrom: { secretKeyRef: { name: lighthouse-backup, key: access-key-id } }
+                - name: RCLONE_CONFIG_STORE_SECRET_ACCESS_KEY
+                  valueFrom: { secretKeyRef: { name: lighthouse-backup, key: secret-access-key } }
+                - name: BUCKET
+                  valueFrom: { secretKeyRef: { name: lighthouse-backup, key: bucket } }
+                - { name: RCLONE_CONFIG_DIR, value: /tmp }
+              securityContext: *restricted
+              volumeMounts:
+                - { name: backup, mountPath: /backup }
+                - { name: tmp, mountPath: /tmp }
+          volumes:
+            - { name: backup, emptyDir: {} }
+            - { name: tmp, emptyDir: {} }

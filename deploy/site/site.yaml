@@ -1,6 +1,6 @@
 # The portfolio's content (SITE_DIR). Stories live in stories/<slug>.yaml, images in media/.
-# Demo and health addresses are placeholders until the demos are deployed; health addresses
-# usually point inside the cluster and are never shown publicly.
+# ${DOMAIN} is the host of Lighthouse's PUBLIC_URL. Health addresses point inside the cluster
+# (deploy/k8s) and are never shown publicly.
 
 profile:
   strip: "A live portfolio. Every project on this page is running now, and every figure is measured by the site itself."
@@ -38,7 +38,7 @@ profile:
 
   how_to:
     - title: Launch a demo
-      body: Projects run live. A sleeping demo takes up to a minute to start; you get a short tour meanwhile.
+      body: Projects run live. Launching one shows a short technical tour while Lighthouse checks the demo is up.
     - title: Check the numbers
       body: Uptime and response times come from the site's own checks, not from a CV.
     - title: Read the story
@@ -132,9 +132,9 @@ projects:
       - { label: Stack, value: "NestJS · Yjs · PostgreSQL" }
     repo: https://github.com/MrtnOmwenga/RBAC-API
     docs: https://github.com/MrtnOmwenga/RBAC-API/blob/master/docs/COLLABORATION.md
-    demo: https://redacted.example.com
-    tour: https://redacted.example.com/?tour=play
-    health: http://redacted.demos.svc.cluster.local:3000/health
+    demo: https://redacted.${DOMAIN}
+    tour: https://redacted.${DOMAIN}/?tour=play
+    health: http://redacted.demos.svc.cluster.local:3000/health/ready
     monitor: redacted
     intro:
       - kicker: Architecture
@@ -195,8 +195,8 @@ projects:
       - { label: Stack, value: "React · Express · MongoDB" }
     repo: https://github.com/MrtnOmwenga/GhostChat
     docs: https://github.com/MrtnOmwenga/GhostChat/blob/master/docs/DESIGN.md
-    demo: https://ghostchat.example.com
-    health: http://ghostchat.demos.svc.cluster.local:3000/health
+    demo: https://ghostchat.${DOMAIN}
+    health: http://ghostchat.demos.svc.cluster.local:5000/health
     monitor: ghostchat
     intro:
       - kicker: The threat model
@@ -241,7 +241,7 @@ projects:
       press a button.
     plain: >-
       A system that keeps watch over every project, notices when one goes down, records an incident
-      and publishes what happened. It also wakes demos up when you launch them.
+      and publishes what happened. It also checks a demo is up before opening it for you.
     hood: >-
       Go and PostgreSQL with row-level security, SSRF-safe probes, incidents opened by a state
       machine, property tests and fuzzing. Shipped as a distroless container.

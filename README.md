@@ -2,7 +2,7 @@
 
 My engineering portfolio, published as a newspaper by the monitoring system that watches it.
 Written in Go. It presents my projects as stories (the problem, the key design decisions, how each
-is tested), starts their demos on demand with a short introduction while they wake up, monitors
+is tested), opens their demos with a short introduction while it checks they are up, monitors
 all of them, opens and resolves incidents on its own, and publishes the results. Anyone can also try
 the monitoring in a sandbox, without an account.
 
@@ -20,9 +20,8 @@ the monitoring in a sandbox, without an account.
 - **A long-form story per project** ([example](docs/story.png)), written for a hiring team: the
   problem, how it was solved, the key decisions (the choice, why, and the trade-off), how it is
   tested, and what it doesn't do yet.
-- **A launch page for every demo.** Demos sleep when nobody is using them, so launching one shows
-  "Developing: starting Redacted" with a five-part technical introduction that advances on its
-  own. Lighthouse polls the demo's health address, which also wakes it; when it answers, a LIVE bar
+- **A launch page for every demo.** Launching one shows "Developing: starting Redacted" with a five-part technical introduction that advances on its
+  own. Lighthouse polls the demo's health address (which would also wake a sleeping one); when it answers, a LIVE bar
   drops in, and the demo opens once the introduction ends (or at once, with "Skip intro"). A demo
   with a guided tour (Redacted has two: one that plays itself, one that guides you) offers it at
   the end instead.
@@ -177,6 +176,11 @@ Choices worth explaining:
 - **Probes run outside transactions.** A check can take 30 seconds; holding a database
   connection that long would limit concurrency to the pool size.
 
-## Roadmap
+## Deploying it
 
-- Deployment with Terraform and k3s on Oracle Cloud's free tier, behind Cloudflare
+[`deploy/`](deploy/README.md) holds everything needed to run it for real, for free: Terraform for
+one Oracle Cloud Always Free ARM VM running k3s and a Cloudflare Tunnel (no open web ports), and
+Kubernetes manifests kept in step by Flux, with every pod locked down (non-root, read-only,
+no capabilities, restricted Pod Security, default-deny network policies). Every push to `main`
+publishes signed multi-architecture images; Flux rolls them out and records each deploy as a
+commit. Email alerts go out when a monitor opens or resolves an incident.

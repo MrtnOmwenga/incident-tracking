@@ -16,7 +16,7 @@ import (
 )
 
 func TestTheShippedSiteIsValid(t *testing.T) {
-	s, err := Load("../../deploy/site")
+	s, err := Load("../../deploy/site", "example.dev")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,13 +41,16 @@ func TestTheShippedSiteIsValid(t *testing.T) {
 	if next, ok := s.Next("pair-bridge"); !ok || next.Slug != "redacted" {
 		t.Errorf("the last story's next should wrap to the first: %v", next.Slug)
 	}
+	if r, _ := s.Find("redacted"); r.Demo != "https://redacted.example.dev" || r.Tour != "https://redacted.example.dev/?tour=play" {
+		t.Errorf("${DOMAIN} is the public URL's host: %q %q", r.Demo, r.Tour)
+	}
 	if s.Profile.Links.CVURL() != "" {
 		t.Error("no CV configured: the button stays hidden")
 	}
 }
 
 func TestAnEmptyDirIsAnEmptySite(t *testing.T) {
-	s, err := Load("")
+	s, err := Load("", "example.dev")
 	if err != nil || len(s.Projects) != 0 || s.Stories == nil {
 		t.Fatalf("%+v %v", s, err)
 	}
@@ -97,7 +100,7 @@ projects:
     hood: h
 `)
 	write(t, dir, "stories/storied.yaml", "problem: { title: The problem }\n")
-	_, err := Load(dir)
+	_, err := Load(dir, "example.dev")
 	if err == nil {
 		t.Fatal("accepted invalid content")
 	}
@@ -116,7 +119,7 @@ projects:
 func TestUnknownKeysAreErrors(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, "site.yaml", "projects:\n  - slug: x\n    nmae: typo\n")
-	if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), "nmae") {
+	if _, err := Load(dir, "example.dev"); err == nil || !strings.Contains(err.Error(), "nmae") {
 		t.Fatalf("a typo must fail loudly: %v", err)
 	}
 }

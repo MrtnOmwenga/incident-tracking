@@ -1,0 +1,37 @@
+# Nothing reaches a pod here unless a rule below allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+# The public site: from the tunnel only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lighthouse-from-tunnel
+spec:
+  podSelector:
+    matchLabels: { app: lighthouse }
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: cloudflared }
+      ports: [{ port: 8080 }]
+---
+# The database: from Lighthouse and the backup job only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-from-lighthouse
+spec:
+  podSelector:
+    matchLabels: { app: postgres }
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: app, operator: In, values: [lighthouse, lighthouse-backup] }
+      ports: [{ port: 5432 }]
