@@ -21,8 +21,8 @@ import (
 
 	"github.com/MrtnOmwenga/lighthouse/internal/auth"
 	"github.com/MrtnOmwenga/lighthouse/internal/config"
-	"github.com/MrtnOmwenga/lighthouse/internal/hub"
 	"github.com/MrtnOmwenga/lighthouse/internal/monitor"
+	"github.com/MrtnOmwenga/lighthouse/internal/site"
 	"github.com/MrtnOmwenga/lighthouse/internal/store"
 	"github.com/MrtnOmwenga/lighthouse/internal/web"
 )
@@ -68,7 +68,7 @@ func serve(ctx context.Context, log *slog.Logger) error {
 		return fmt.Errorf("owner tenant: %w", err)
 	}
 
-	catalog, err := hub.Load(cfg.ProjectsFile)
+	content, err := site.Load(cfg.SiteDir)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func serve(ctx context.Context, log *slog.Logger) error {
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           handler(cfg, pool, log, owner, catalog),
+		Handler:           handler(cfg, pool, log, owner, content),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -108,9 +108,9 @@ func serve(ctx context.Context, log *slog.Logger) error {
 	return err
 }
 
-func handler(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger, owner string, catalog hub.Catalog) http.Handler {
+func handler(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger, owner string, content *site.Site) http.Handler {
 	srv := web.New(cfg, pool, auth.New(pool, cfg), log, owner)
-	srv.Catalog = catalog
+	srv.Site = content
 	return srv.Handler()
 }
 

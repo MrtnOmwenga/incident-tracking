@@ -1,0 +1,113 @@
+read_minutes: 8
+updated: September 2026
+figure_caption: >-
+  Every message is signed and linked to the one before it. Change, drop or reorder one, and every
+  participant's browser sees the broken link.
+
+problem:
+  title: The problem
+  paragraphs:
+    - >-
+      End-to-end encryption usually promises one thing: the server can't read your messages. It says
+      nothing about whether the server can fake a message, quietly delete one, reorder a
+      conversation, or swap in its own key for someone you're talking to, which is how encrypted
+      chats are usually attacked in practice.
+    - >-
+      GhostChat starts from a stricter threat model: assume the server, or whoever controls it, is
+      hostile. It may relay and store everything, but it must not be able to read, forge or
+      silently alter anything, and each of those guarantees has to be visible and checkable by the
+      people using it.
+
+solution:
+  title: How it works
+  paragraphs:
+    - >-
+      All encryption happens in the browser with libsodium; nothing is hand-rolled. The password is
+      split before it leaves the device: one half signs in, the other unlocks a vault of private
+      keys that the server stores but can never open. A 24-word recovery phrase can regenerate
+      every key the account will ever use.
+    - >-
+      Every message is signed by its author and linked into a hash chain for its conversation. The
+      server enforces the chain, and every client verifies it, so a forged, edited, reordered or
+      dropped message shows up as a broken link. Keys are published in a transparency log, the same
+      Merkle-tree design as Certificate Transparency, so the server can't show different people
+      different keys without the proofs failing.
+    - >-
+      Files are encrypted in the browser in authenticated chunks, stored by the hash of their
+      ciphertext, and checked against the hash the sender signed before they are decrypted.
+
+quote: >-
+  The server relays and stores data it can't read, can't forge and can't silently alter, and each
+  of those guarantees is visible in the product.
+
+steps:
+  caption: What the browser does when two people send at the same moment. No user action needed.
+  items:
+    - { title: Conflict, body: "The server accepts one message and answers the other with the messages it missed." }
+    - { title: Apply, body: "The second sender's browser applies the message that won." }
+    - { title: Re-link and re-sign, body: "It links its own message onto the new head and signs it again." }
+    - { title: Resend, body: "It resends after a short jittered backoff. Both people see the same order." }
+
+decisions:
+  - title: Verifiable, not deniable
+    choice: Messages are signed with each author's long-term key.
+    why: Tamper evidence is the point. A signature proves who wrote a message and lets every client detect forgery.
+    trade_off: Signed messages are non-repudiable. Signal chooses deniability instead; GhostChat chooses verifiability, and says so.
+  - title: A transparency log, not a blockchain
+    choice: Keys go into an append-only Merkle log with signed tree heads; only its root is anchored on Bitcoin, once a day, through OpenTimestamps.
+    why: >-
+      Storing messages on a public chain would make them permanent and expose who talks to whom.
+      A verifiable log gives the same tamper evidence; the daily anchor adds independent proof that
+      the log wasn't rewritten later, for free.
+    trade_off: The log is recomputed per request, which suits a small deployment; a large one would cache interior nodes.
+  - title: Pre-rotation for key changes
+    choice: Every key-history entry commits to the hash of the next signing key, derived from the recovery phrase.
+    why: Someone who steals the current key can't rotate to a key of their own, because it won't match the commitment.
+    trade_off: Rotating keys asks for the recovery phrase.
+  - title: Files in the database, not a separate store
+    choice: Encrypted files stored by hash in MongoDB GridFS.
+    why: No extra service to run or pay for, with the same guarantees for files of this size. The storage module is small enough to swap for S3-compatible storage later.
+    trade_off: Files are capped at 10 MB each and 200 MB per user.
+  - title: Deletion that keeps the chain intact
+    choice: A deleted message becomes a signed tombstone that keeps its place in the chain; its content, keys and files are erased.
+    why: '"Vanish without a trace" has to be real, but a silent gap would look like tampering.'
+    trade_off: The username and public keys stay in the append-only transparency log after an account is deleted.
+
+testing:
+  title: How it is tested
+  paragraphs:
+    - >-
+      The cryptography is tested against published vectors (RFC 8032, RFC 7748, FIPS 180-2,
+      BIP-39), and the frontend and backend share canonical-JSON, key-history and Merkle-proof
+      fixtures so the two implementations can't drift apart.
+    - >-
+      End-to-end Playwright tests hold a real conversation and then scan the database and stored
+      files for the sent text, file contents and photo metadata: none is found. They tamper with a
+      stored message, a file and the log, and check the UI flags exactly that item. A stress test
+      sends from both sides at once, repeatedly, and always ends with one intact chain. CI fails a
+      run whose tests only pass on retry.
+
+limits:
+  title: What it doesn't do yet
+  paragraphs:
+    - >-
+      No forward secrecy yet: a leaked encryption key exposes past messages encrypted to it (the
+      Double Ratchet and MLS are the next step). The server still sees metadata such as who talks
+      to whom and when. And, like every web app with end-to-end encryption, it has to trust the
+      JavaScript the server delivers; a strict Content Security Policy narrows that gap but doesn't
+      close it.
+
+numbers:
+  - { value: "0", label: private keys the server can use }
+  - { value: "24", label: words in the recovery phrase }
+  - { value: "64 KiB", label: authenticated file chunks }
+  - { value: "4", label: published test-vector suites }
+
+fact_file:
+  - { label: What it is, value: "End-to-end encrypted chat with verifiable identity and tamper-evident history" }
+  - { label: Role, value: "Sole engineer: design, build and tests" }
+  - { label: Stack, value: "React · Express · Socket.IO · MongoDB · Redis" }
+  - { label: Cryptography, value: "libsodium: Ed25519, X25519, XChaCha20-Poly1305, Argon2id" }
+  - { label: Tests, value: "Jest · Playwright · published test vectors" }
+
+call_to_action: Open it in two windows, send a message, then look at the chain behind it.

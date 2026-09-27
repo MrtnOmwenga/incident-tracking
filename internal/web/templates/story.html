@@ -1,0 +1,118 @@
+{{with .Card}}{{template "head" (printf "%s · The Lighthouse" .Name)}}
+<meta name="description" content="{{.Plain}}">{{end}}
+</head>
+<body>
+{{template "masthead" .}}
+<main id="main">
+{{$p := .Card}}{{$s := .Story}}
+<section class="wrap">
+  <div class="story-head">
+    <span class="kicker"><a href="/projects">Projects</a> / {{$p.Kicker}}</span>
+    <h1>{{$p.Headline}}</h1>
+    {{with $p.Standfirst}}<p class="standfirst">{{.}}</p>{{else}}<p class="standfirst">{{$p.Plain}}</p>{{end}}
+    <p class="byline">By {{.Owner}}{{with $s.ReadMinutes}} · {{.}} min read{{end}}{{with $s.Updated}} · Updated {{.}}{{end}}</p>
+    <div class="actions center">
+      {{if $p.Demo}}<a class="button primary" href="/go/{{$p.Slug}}">Launch the demo →</a>{{end}}
+      {{with $p.Repo}}<a class="button" href="{{.}}" rel="noopener">Code</a>{{end}}
+      {{with $p.Docs}}<a class="button" href="{{.}}" rel="noopener">Design notes</a>{{end}}
+    </div>
+  </div>
+</section>
+
+{{if $p.Figure}}
+<figure class="wrap stack-sm figure-block">
+  {{template "figure" (figure $p.Figure "hero")}}
+  {{with $s.FigureCaption}}<figcaption class="caption">{{.}}</figcaption>{{end}}
+</figure>
+{{end}}
+
+<section class="wrap section grid">
+  <article class="span-8 stack article">
+    <h2 id="problem">{{$s.Problem.Title}}</h2>
+    {{range $i, $para := $s.Problem.Paragraphs}}<p {{if eq $i 0}}class="drop"{{end}}>{{$para}}</p>{{end}}
+    <h2 id="solution">{{$s.Solution.Title}}</h2>
+    {{range $s.Solution.Paragraphs}}<p>{{.}}</p>{{end}}
+    {{with $s.Quote}}<blockquote class="quote">“{{.}}”</blockquote>{{end}}
+  </article>
+  <aside class="span-4 rail">
+    {{with $s.FactFile}}
+    <div class="panel facts"><p class="label">Fact file</p>
+      {{range .}}<div class="row"><span class="k">{{.Label}}</span><span class="v">{{.Value}}</span></div>{{end}}
+      {{template "status-line" $p}}
+    </div>
+    {{end}}
+    <div class="rule-top-thin stack-sm">
+      <p class="label">In plain terms</p>
+      <p>{{$p.Plain}}</p>
+    </div>
+    <nav class="toc" aria-label="In this story">
+      <span class="label">In this story</span>
+      <a href="#problem">{{$s.Problem.Title}}</a>
+      <a href="#solution">{{$s.Solution.Title}}</a>
+      <a href="#decisions">Key decisions</a>
+      {{with $s.Testing.Title}}<a href="#testing">{{.}}</a>{{end}}
+      {{with $s.Limits.Title}}<a href="#limits">{{.}}</a>{{end}}
+    </nav>
+  </aside>
+</section>
+
+{{with $s.Steps}}
+<figure class="wrap stack-sm figure-block">
+  <div class="fig steps">
+    {{range $i, $it := .Items}}<div class="step"><span class="n">{{inc $i}}</span><span class="t">{{$it.Title}}</span><span class="d">{{$it.Body}}</span></div>{{end}}
+  </div>
+  {{with .Caption}}<figcaption class="caption">{{.}}</figcaption>{{end}}
+</figure>
+{{end}}
+
+<section class="wrap section">
+  <h2 id="decisions" class="section-title">Key decisions</h2>
+  <p class="caption decisions-intro">What was chosen, why, and what it costs.</p>
+  <div class="decisions">
+    {{range $s.Decisions}}
+    <div class="decision">
+      <h3>{{.Title}}</h3>
+      <p><b>The choice.</b> {{.Choice}}</p>
+      <p><b>Why.</b> {{.Why}}</p>
+      {{with .TradeOff}}<p class="trade"><b>The trade-off.</b> {{.}}</p>{{end}}
+    </div>
+    {{end}}
+  </div>
+</section>
+
+<section class="wrap section grid">
+  <article class="span-8 stack article">
+    {{with $s.Testing.Title}}<h2 id="testing">{{.}}</h2>{{end}}
+    {{range $s.Testing.Paragraphs}}<p>{{.}}</p>{{end}}
+    {{with $s.Limits.Title}}<h2 id="limits">{{.}}</h2>{{end}}
+    {{range $s.Limits.Paragraphs}}<p>{{.}}</p>{{end}}
+  </article>
+  {{with $s.Numbers}}
+  <aside class="span-4 rail numbers rule-top-ink">
+    <p class="label">By the numbers</p>
+    {{range .}}<div class="n"><p class="v">{{.Value}}</p><p class="k">{{.Label}}</p></div>{{end}}
+  </aside>
+  {{end}}
+</section>
+
+<section class="wrap section">
+  <div class="cta">
+    <div class="stack-sm">
+      <span class="label">{{if $p.Demo}}Try it yourself{{else}}Read the code{{end}}</span>
+      <span class="line">{{with $s.CallToAction}}{{.}}{{else}}See it for yourself.{{end}}</span>
+    </div>
+    <div class="actions">
+      {{if $p.Demo}}<a class="button light" href="/go/{{$p.Slug}}">Launch the demo →</a>{{else if $p.Monitor}}<a class="button light" href="/status">See the systems data →</a>{{end}}
+      {{with $p.Repo}}<a class="button outline-light" href="{{.}}" rel="noopener">Code</a>{{end}}
+    </div>
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="next-story rule-top">
+    <a class="more" href="/projects">← All projects</a>
+    {{with .Next}}<a class="next" href="/projects/{{.Slug}}">Next: {{.Headline}} →</a>{{end}}
+  </div>
+</section>
+</main>
+{{template "foot" .}}

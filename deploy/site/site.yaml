@@ -1,0 +1,274 @@
+# The portfolio's content (SITE_DIR). Stories live in stories/<slug>.yaml, images in media/.
+# Demo and health addresses are placeholders until the demos are deployed; health addresses
+# usually point inside the cluster and are never shown publicly.
+
+profile:
+  strip: "A live portfolio. Every project on this page is running now, and every figure is measured by the site itself."
+  portrait: portrait.jpg
+  portrait_caption: Martin Omwenga, Nairobi.
+  links:
+    email: omwenga.mrtn@gmail.com
+    linkedin: https://www.linkedin.com/in/omwenga-martin
+    github: https://github.com/MrtnOmwenga
+    cv: ""
+
+  lead:
+    kicker: About the engineer
+    headline: Martin Omwenga builds backend systems, and the platforms that keep them running
+    standfirst: >-
+      A fullstack and platform engineer in Nairobi, currently tech lead on platforms for European
+      clients. This site is his portfolio, and also one of his projects: every demo below is live,
+      watched every 30 seconds by a monitoring system he wrote.
+    paragraphs:
+      - >-
+        Recent work includes preview environments for every pull request on Kubernetes, a two-way
+        sync between an ordering platform and a Sage ERP, Node.js and Kafka services handling more
+        than 10,000 requests a minute, and an AI assistant with tool use and retrieval, in
+        production.
+      - >-
+        He works mostly in TypeScript (NestJS, Express) with PostgreSQL, Kafka, Kubernetes and
+        Terraform, and holds the AWS Solutions Architect – Associate certification. Lighthouse, the
+        system that publishes this page, is written in Go.
+
+  glance:
+    - { label: Role, value: "Tech lead · fullstack & platform" }
+    - { label: Based, value: "Nairobi, Kenya (GMT+3)" }
+    - { label: Stack, value: "TypeScript · PostgreSQL · Kubernetes · Terraform" }
+    - { label: Certified, value: "AWS Solutions Architect – Associate" }
+
+  how_to:
+    - title: Launch a demo
+      body: Projects run live. A sleeping demo takes up to a minute to start; you get a short tour meanwhile.
+    - title: Check the numbers
+      body: Uptime and response times come from the site's own checks, not from a CV.
+    - title: Read the story
+      body: Each project has a write-up of the problem, the design decisions and how it is tested.
+
+  about:
+    kicker: Profile
+    headline: "Four years, four industries, one habit: shipping the infrastructure too"
+    standfirst: >-
+      Martin Omwenga is a fullstack and platform engineer in Nairobi. He builds production systems,
+      and the Kubernetes, Terraform and CI/CD that ship them, and leads a small team from client
+      requirements to release.
+    stats:
+      - { label: Experience, value: 4 years }
+      - { label: Currently, value: Tech lead }
+      - { label: Time zone, value: GMT+3 }
+    paragraphs:
+      - >-
+        The work has moved across B2B e-commerce, decentralized finance, education and
+        ride-sharing, but it keeps ending in the same place: the API, and the platform under it. At
+        his current company, a small software firm serving European B2B clients, he leads backend
+        and platform engineering: the ordering and CRM system, its sync with a Sage ERP, the
+        Kubernetes cluster it runs on, and the pipelines that deploy it.
+      - >-
+        Some of what that looks like in practice: a preview environment for every pull request,
+        torn down when it closes; secrets moved out of CI into a dedicated manager after an
+        access-control review; a production order mismatch traced and fixed within three hours; and
+        an AI assistant, with an agent loop and retrieval, running in production.
+    now: Building Lighthouse, the monitor and launcher behind this site, and writing up each project as a readable story.
+    career:
+      - when: Jun 2024 – now
+        title: Fullstack Engineer & Tech Lead, a software company serving European B2B clients
+        body: >-
+          Leads backend and platform engineering for a B2B e-commerce and CRM system: APIs,
+          real-time chat and cart, a two-way Sage ERP sync, Kubernetes, Terraform and CI/CD. Leads
+          two to three engineers, from client requirements to release.
+        note: NestJS · MongoDB · Next.js · React Native · Kubernetes · Terraform
+      - when: 2022 – 2024
+        title: Backend engineer, event-driven microservices (contract)
+        body: >-
+          Node.js microservices handling more than 10,000 requests a minute, with Kafka for
+          asynchronous processing and schemas designed for scale.
+        note: Node.js · Kafka
+      - when: 2022 – 2024
+        title: Protocol engineer, a decentralized yield platform (contract)
+        body: >-
+          Eight months as a core engineer: Solidity vault contracts with batching and caching that
+          cut gas costs, and a Next.js app with wallet integration.
+        note: Solidity · TypeScript · Next.js
+      - when: 2022 – 2024
+        title: Full-stack engineer, an exam-preparation platform (contract)
+        body: >-
+          Long-running delivery for a Spanish education platform: admin and student portals,
+          assessment systems and CI, sustained over several years.
+        note: Vue · Laravel
+      - when: 2022 – 2024
+        title: Full-stack engineer, a ride-sharing MVP (contract)
+        body: Built from scratch and launched to about 5,000 users, with ride matching, payments, verification and real-time chat.
+        note: React Native · TypeScript · PostgreSQL
+    toolbox:
+      - { label: Platform & cloud, value: "Kubernetes, Docker, Terraform, AWS, DigitalOcean, GitHub Actions, Infisical, Prometheus and Grafana" }
+      - { label: Backend, value: "Node.js with NestJS and Express, TypeScript, Python, Go; REST and GraphQL; Kafka and BullMQ" }
+      - { label: Data & integrations, value: "PostgreSQL, MongoDB, MySQL; Sage ERP adapters; OpenAI embeddings and retrieval pipelines" }
+      - { label: Testing & release, value: "Jest, Playwright, Testcontainers; release coordination, QA and client sign-off" }
+    education:
+      - { title: AWS Certified Solutions Architect – Associate, when: January 2024 }
+      - { title: BSc Mechanical & Manufacturing Engineering, body: University of Nairobi, when: 2021 – 2026 }
+      - { title: Software Engineering Diploma (accelerated), body: ALX / African Leadership University, when: "2021" }
+      - { title: Diploma in Data Analytics, body: "Udacity, via African Leadership University" }
+    contact: Based in Nairobi (GMT+3), with a full overlap with European working hours.
+
+projects:
+  - slug: redacted
+    name: Redacted
+    kicker: Redacted · Security · Live demo
+    headline: "Exposed: inside the intelligence agency's briefing room, where secrets black out mid-sentence"
+    standfirst: >-
+      The agency is fictional; the security is not. Three agents share one live document, and the
+      moment one loses clearance, the classified words vanish from their screen.
+    plain: >-
+      Like a shared Google Doc where some words are classified. People without clearance see black
+      bars, and a manager can take away someone's access while they're typing.
+    hood: >-
+      NestJS and Yjs over PostgreSQL row-level security. Hidden text never leaves the server, and
+      open connections are re-authorized before a permission change commits. 600+ tests.
+    figure: redacted
+    placement: lead
+    facts:
+      - { label: Tests, value: "600+" }
+      - { label: Mutation score, value: "100% (policy)" }
+      - { label: Stack, value: "NestJS · Yjs · PostgreSQL" }
+    repo: https://github.com/MrtnOmwenga/RBAC-API
+    docs: https://github.com/MrtnOmwenga/RBAC-API/blob/master/docs/COLLABORATION.md
+    demo: https://redacted.example.com
+    health: http://redacted.demos.svc.cluster.local:3000/health
+    monitor: redacted
+    intro:
+      - kicker: Architecture
+        title: One database, enforced isolation
+        plain: Each part of a document is stored separately, so a part you aren't cleared for is simply never sent to you.
+        body: >-
+          A NestJS API and a Hocuspocus realtime server share one PostgreSQL database with forced
+          row-level security. Every section of a briefing is its own Yjs document, so hiding a
+          section means never syncing it at all.
+        facts: [{ label: row-level security on every table, value: Forced }, { label: "per section, so hiding is structural", value: 1 document }]
+      - kicker: Redaction
+        title: Hidden text never reaches the browser
+        plain: The black bars aren't a disguise laid over the text. The text itself never arrives, and the tests prove it.
+        body: >-
+          The API returns a bar rounded up to 40 characters, so even lengths don't leak. A
+          Playwright test records every HTTP response and WebSocket frame and checks the hidden text
+          appears in none of them.
+        facts: [{ label: redaction rounding, value: 40 characters }, { label: of hidden text in captured traffic, value: 0 bytes }]
+      - kicker: Live permissions
+        title: Demoted mid-keystroke
+        plain: Take away someone's access while they're typing, and their very next keystroke is refused.
+        body: >-
+          Changes send NOTIFY inside their transaction. Open connections are locked read-only before
+          the commit, re-checked after it, and resynced, so no edit lands after a demotion and no
+          legitimate edit is lost.
+        facts: [{ label: "connections lock before the commit", value: Fail closed }, { label: fallback re-check if a change rolls back, value: 3 s }]
+      - kicker: Word-level classification
+        title: Mark words Secret, like making them bold
+        plain: Select a few words and classify them, the way you'd make them bold. Readers without clearance see bars instead.
+        body: >-
+          A classification is a Yjs formatting mark. A pre-update hook refuses marks above the
+          sender's clearance; readers below a mark get a copy the server writes for their level.
+        facts: [{ label: to rebuild a redacted copy, value: 100 ms }, { label: clearance levels, value: "4" }]
+      - kicker: Proof
+        title: More than 600 tests behind the bars
+        plain: Every rule above has a test that tries to break it, and the tests are themselves checked by deliberately introducing bugs.
+        body: >-
+          A generated authorization matrix of 441 requests, property tests over 500 random
+          documents, browser tests with three users at once, and a 100% mutation score on the
+          security-critical modules.
+        facts: [{ label: tests, value: "603" }, { label: "mutation score, security modules", value: "100%" }]
+
+  - slug: ghostchat
+    name: GhostChat
+    kicker: GhostChat · Cryptography · Live demo
+    headline: "Leak-proof: the messaging app built on the assumption that its own server is already compromised"
+    plain: >-
+      Private messaging where even whoever runs the server can't read your messages or quietly
+      change them.
+    hood: >-
+      Encryption in the browser with libsodium, signed hash-chained history, and a key
+      transparency log with Merkle proofs.
+    figure: chain
+    placement: side
+    facts:
+      - { label: Crypto, value: libsodium only }
+      - { label: Integrity, value: Merkle proofs }
+      - { label: Stack, value: "React · Express · MongoDB" }
+    repo: https://github.com/MrtnOmwenga/GhostChat
+    docs: https://github.com/MrtnOmwenga/GhostChat/blob/master/docs/DESIGN.md
+    demo: https://ghostchat.example.com
+    health: http://ghostchat.demos.svc.cluster.local:3000/health
+    monitor: ghostchat
+    intro:
+      - kicker: The threat model
+        title: Assume the server is the attacker
+        plain: The server stores and relays your messages, but it can't read them, fake them or quietly change them.
+        body: >-
+          A database dump holds ciphertext only. Every message is signed by its author and linked
+          into a hash chain, so the server can't forge, edit, reorder or drop messages without
+          every client noticing.
+        facts: [{ label: private keys ever held by the server, value: "0" }]
+      - kicker: Passwords and keys
+        title: The password is split before it leaves the browser
+        plain: Your password unlocks your keys on your own device. The server only ever sees a derived login key.
+        body: >-
+          Argon2id turns the password into two keys: one signs in, the other unlocks an encrypted
+          key vault that never leaves the browser. A 24-word recovery phrase regenerates every key
+          the account will ever use.
+        facts: [{ label: Argon2id memory, value: 64 MiB }, { label: recovery phrase, value: 24 words }]
+      - kicker: Key transparency
+        title: A public log the server can't rewrite
+        plain: Nobody, including the server, can swap in a fake key for someone without it being caught.
+        body: >-
+          Every key change goes into a Merkle tree log, the Certificate Transparency design.
+          Browsers check inclusion and consistency proofs, and the log root is anchored daily on
+          Bitcoin through OpenTimestamps.
+        facts: [{ label: log design, value: RFC 6962 }]
+      - kicker: Files
+        title: Encrypted in the browser, stored by hash
+        plain: Photos and files are locked before upload, stripped of location data, and truly deleted with their message.
+        body: >-
+          Files are encrypted in authenticated 64 KiB chunks, stored by the hash of the ciphertext
+          in MongoDB GridFS, and checked against the hash the sender signed before decrypting.
+        facts: [{ label: per file, value: 10 MB }, { label: chunk size, value: 64 KiB }]
+
+  - slug: lighthouse
+    name: Lighthouse
+    kicker: Lighthouse · Infrastructure · The system behind this page
+    headline: The website that monitors itself, logs its own failures and publishes the evidence
+    standfirst: >-
+      Every 30 seconds it checks each project on this page. When one goes down it opens an
+      incident, writes up what happened, and closes the case when service returns. Nobody has to
+      press a button.
+    plain: >-
+      A system that keeps watch over every project, notices when one goes down, records an incident
+      and publishes what happened. It also wakes demos up when you launch them.
+    hood: >-
+      Go and PostgreSQL with row-level security, SSRF-safe probes, incidents opened by a state
+      machine, property tests and fuzzing. Shipped as a distroless container.
+    figure: architecture
+    placement: feature
+    facts:
+      - { label: Checks, value: every 30 s }
+      - { label: Language, value: Go }
+      - { label: Tests, value: "race, fuzz, property" }
+    repo: https://github.com/MrtnOmwenga/lighthouse
+    monitor: lighthouse
+    no_demo_note: You're using it. The systems page is the live part.
+
+  - slug: pair-bridge
+    name: PairBridge
+    kicker: PairBridge · Systems · Runs on your devices
+    headline: "Off the grid: how a laptop and a tablet share files without ever touching the cloud"
+    plain: >-
+      A Linux PC shows up in every Android file picker, like Google Drive, but the files never
+      leave your own network.
+    hood: >-
+      A FastAPI server on the PC and a native Android DocumentsProvider, built around one rule:
+      the tablet only opens outbound connections.
+    figure: devices
+    placement: brief
+    facts:
+      - { label: PC, value: "Python · FastAPI" }
+      - { label: Tablet, value: "Kotlin · Android" }
+      - { label: Cloud, value: none }
+    repo: https://github.com/MrtnOmwenga/pair-bridge
+    no_demo_note: Runs on your own devices, so there's no hosted demo.

@@ -1,0 +1,43 @@
+{{template "head" (printf "Projects · The Lighthouse")}}
+<meta name="description" content="Projects by {{.Owner}}: what each one solves, how it was built, and live demos.">
+</head>
+<body>
+{{template "masthead" .}}
+<main id="main">
+<section class="wrap section grid border-bottom">
+  <div class="span-8 stack">
+    <span class="kicker">Projects</span>
+    <h1 class="page-title">{{len .Cards}} projects, {{.LiveCount}} running live right now</h1>
+    <p class="standfirst">Each has a full write-up: the problem, the design decisions and how it is tested. Launch a demo to try it, or read the story first.</p>
+  </div>
+  <div class="span-4 stats align-end">
+    <div class="stat claret"><span class="k">Live demos</span><p class="v">{{.LiveCount}}</p></div>
+    <div class="stat"><span class="k">Projects</span><p class="v">{{len .Cards}}</p></div>
+  </div>
+</section>
+<section class="wrap">
+  {{range .Cards}}
+  <article class="index-entry grid">
+    <div class="span-3 stack-sm">
+      {{template "figure" (figure .Figure "card")}}
+      {{template "status-line" .}}
+    </div>
+    <div class="span-6 stack-sm story">
+      <span class="kicker">{{.Kicker}}</span>
+      <h2>{{if .HasStory}}<a class="headline-link" href="/projects/{{.Slug}}">{{.Headline}}</a>{{else}}{{.Headline}}{{end}}</h2>
+      <p class="plain"><b>In plain terms.</b> {{.Plain}}</p>
+      <p class="hood"><b>Under the hood.</b> {{.Hood}}</p>
+    </div>
+    <div class="span-3 stack">
+      {{with .Facts}}<div class="panel">{{range .}}<div class="row"><span class="k">{{.Label}}</span><span class="v">{{.Value}}</span></div>{{end}}</div>{{end}}
+      {{if .HasStory}}<a class="more" href="/projects/{{.Slug}}">Read the story →</a>{{end}}
+      <div class="actions">
+        {{if .Demo}}<a class="button primary" href="/go/{{.Slug}}">Launch demo</a>{{end}}
+        {{with .Repo}}<a class="button" href="{{.}}" rel="noopener">Code</a>{{end}}
+      </div>
+    </div>
+  </article>
+  {{end}}
+</section>
+</main>
+{{template "foot" .}}

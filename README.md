@@ -1,30 +1,40 @@
 # Lighthouse
 
-The front door to my portfolio, written in Go. It lists my projects, starts their demos on demand
-(introducing each one while it wakes up), monitors all of them, opens and resolves incidents on its
-own, and publishes a status page anyone can read. Anyone can also try the monitoring in a sandbox,
-without an account.
+My engineering portfolio, published as a newspaper by the monitoring system that watches it.
+Written in Go. It presents my projects as stories (the problem, the key design decisions, how each
+is tested), starts their demos on demand with a short introduction while they wake up, monitors
+all of them, opens and resolves incidents on its own, and publishes the results. Anyone can also try
+the monitoring in a sandbox, without an account.
 
-![The project hub](docs/hub-light.png)
+![The front page](docs/front.png)
 
 <sub>Screenshots are from a local run with simulated monitors and generated history.</sub>
 
 ## What it does
 
-**The hub**
+**The portfolio**
 
-- **A project list** with each project's live status and 90-day uptime, from its monitor.
+- **A front page** that leads with who I am, then the projects, each told twice: *in plain terms*
+  for anyone, *under the hood* for engineers. A live ticker and a systems table show each
+  project's uptime and response times, measured by Lighthouse itself.
+- **A long-form story per project** ([example](docs/story.png)), written for a hiring team: the
+  problem, how it was solved, the key decisions (the choice, why, and the trade-off), how it is
+  tested, and what it doesn't do yet.
 - **A launch page for every demo.** Demos sleep when nobody is using them, so launching one shows
-  "Starting Redacted…" with a short introduction to the project. Lighthouse polls the demo's health
-  address, which also wakes it, and opens the demo when both it and the visitor are ready. The
-  visitor can skip ahead once it's up; a demo with a guided tour offers the choice at the end.
-- **Built to degrade gracefully:** without JavaScript the introduction is a readable page with a
-  plain link, and if the status can't be loaded the projects still show.
-- **Projects are configuration:** a YAML file, validated at startup like the rest of the settings.
+  "Developing: starting Redacted" with a five-part technical introduction that advances on its
+  own. Lighthouse polls the demo's health address, which also wakes it; when it answers, a LIVE bar
+  drops in, and the demo opens once the introduction ends (or at once, with "Skip intro").
+- **An About page** built from the CV ([screenshot](docs/about.png)).
+- **Responsive and dependable:** every page works from phone to desktop, reads fully without
+  JavaScript, and still renders if the monitoring data can't be loaded.
+- **Content is configuration:** a folder of YAML (`deploy/site`: profile, projects, one story per
+  project, media), validated strictly at startup so a typo fails there, with every problem listed.
 
 | Starting | Ready |
 |---|---|
 | ![A demo waking up](docs/launch-waking.png) | ![The demo is ready](docs/launch-ready.png) |
+
+![On a phone: the front page, a story and the systems data](docs/phone.png)
 
 **Monitoring**
 
@@ -36,8 +46,8 @@ without an account.
   and a flapping site doesn't open an incident every minute.
 - **Incident timelines** with public updates and internal notes. Only public updates reach the
   status page.
-- **A public status page** ([screenshot](docs/status-light.png)) rendered on the server, no JavaScript: overall state, 90 days of daily
-  uptime, 24-hour response-time sparklines (SVG drawn in Go), median and 95th-percentile latency,
+- **A public systems page** ([screenshot](docs/status.png)) rendered on the server: overall state,
+  uptime over 24 hours, 7 and 90 days, 90 days of daily 24-hour response-time sparklines (SVG drawn in Go), median and 95th-percentile latency,
   and past incidents. Also available as JSON at `/api/status`.
 - **A sandbox for visitors:** one click creates a private, throwaway workspace with simulated sites
   to break and fix (`up`, `slow`, `flaky`, `down`), and it expires after two hours.
@@ -67,6 +77,9 @@ go test -race ./...
 - **Property tests** (rapid) for the incident state machine over random check sequences, and for
   uptime rounding.
 - **Fuzzing** for monitor validation and the SVG sparkline.
+- **Content tests:** the shipped site loads and validates, every page of it renders without
+  template errors or inline styles (which the CSP would block), and no internal address appears in
+  public output.
 - **Launch-page tests** in a real browser (Playwright, run locally): the introduction advances,
   the page switches to ready when the demo answers, opens it after the last slide, skip works,
   and the page is complete without JavaScript.
@@ -85,8 +98,8 @@ cp .env.example .env   # set the two passwords; DEV_LOGIN=true for a local owner
 docker compose up --build
 ```
 
-Then open <http://localhost:8080>. The hub reads `deploy/projects.yaml`; point `PROJECTS_DIR` at
-another folder to use your own. `POST /auth/dev` signs you in as the owner locally;
+Then open <http://localhost:8080>. The pages read `deploy/site`; point `SITE_DIR` at another folder
+to use your own. `POST /auth/dev` signs you in as the owner locally;
 `POST /api/sandbox` starts a sandbox.
 
 The image is a static binary on a distroless base, running as a non-root user with a read-only
@@ -101,19 +114,20 @@ internal/config      settings from the environment, validated together
 internal/store       PostgreSQL: migrations, row-level security, queries
 internal/monitor     probes (HTTP, simulated), the incident state machine, the scheduler
 internal/status      status page data and the SVG sparkline
-internal/hub         the project catalog and demo readiness
+internal/site        the portfolio content (profile, projects, stories) and demo readiness
 internal/auth        sessions, GitHub OAuth, sandboxes
 internal/web         routes, middleware, HTML templates, the JSON API
 ```
 
 Choices worth explaining:
 
-- **Server-rendered pages.** The hub and status page are read far more often than anything else,
-  and they should load fast and work when things are broken. Go's `html/template` escapes by
-  context. The only script is the launch page's slideshow, and the page works without it.
-- **Design carried over** from the original version of this project (an incident tracker in Vue):
-  the deep-red bar, Roboto Mono, white cards on soft gray. The font is served locally, so the
-  Content Security Policy allows nothing from other origins.
+- **Server-rendered pages.** These pages are read far more often than anything else, and they
+  should load fast and work when things are broken. Go's `html/template` escapes by context. The
+  only script is the launch page's introduction, and the page works without it.
+- **A broadsheet, because the data is real.** The newspaper design (Newsreader and IBM Plex Sans
+  Condensed on pink paper, one claret accent) carries live figures: the "markets data" is uptime.
+  Fonts are served from the site itself, so the Content Security Policy allows nothing from other
+  origins, not even inline styles.
 - **The database is the queue.** Due monitors are claimed with one atomic `UPDATE`, so there is no
   separate queue or lock service to run, and instances can be added freely.
 - **Probes run outside transactions.** A check can take 30 seconds; holding a database

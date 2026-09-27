@@ -24,8 +24,8 @@ import (
 
 	"github.com/MrtnOmwenga/lighthouse/internal/auth"
 	"github.com/MrtnOmwenga/lighthouse/internal/config"
-	"github.com/MrtnOmwenga/lighthouse/internal/hub"
 	"github.com/MrtnOmwenga/lighthouse/internal/monitor"
+	"github.com/MrtnOmwenga/lighthouse/internal/site"
 	"github.com/MrtnOmwenga/lighthouse/internal/store"
 )
 
@@ -42,8 +42,8 @@ type Server struct {
 	Log         *slog.Logger
 	OwnerTenant string // whose monitors the public status page shows
 	Now         func() time.Time
-	Catalog     hub.Catalog    // the projects on the hub
-	Readiness   *hub.Readiness // wakes demos and reports when they're up
+	Site        *site.Site      // the portfolio's content
+	Readiness   *site.Readiness // wakes demos and reports when they're up
 
 	pages     *template.Template
 	sandboxes *limiter // new sandboxes per client
@@ -53,7 +53,8 @@ type Server struct {
 func New(cfg config.Config, pool *pgxpool.Pool, authn *auth.Service, log *slog.Logger, ownerTenant string) *Server {
 	return &Server{
 		Config: cfg, Pool: pool, Auth: authn, Log: log, OwnerTenant: ownerTenant, Now: time.Now,
-		Readiness: hub.NewReadiness(monitor.NewProber()),
+		Site:      &site.Site{Stories: map[string]*site.Story{}},
+		Readiness: site.NewReadiness(monitor.NewProber()),
 		pages:     template.Must(template.New("").Funcs(funcs).ParseFS(templateFS, "templates/*.html")),
 		sandboxes: newLimiter(rate.Every(10*time.Minute), 3),
 		writes:    newLimiter(rate.Every(200*time.Millisecond), 20),
@@ -67,8 +68,12 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /readyz", s.ready)
-	// Public: the hub.
-	mux.HandleFunc("GET /{$}", s.hubPage)
+	// Public: the portfolio.
+	mux.HandleFunc("GET /{$}", s.frontPage)
+	mux.HandleFunc("GET /projects", s.projectsPage)
+	mux.HandleFunc("GET /projects/{slug}", s.storyPage)
+	mux.HandleFunc("GET /about", s.aboutPage)
+	mux.HandleFunc("GET /media/{name}", s.media)
 	mux.HandleFunc("GET /go/{slug}", s.launchPage)
 	mux.HandleFunc("GET /api/projects", s.listProjects)
 	mux.HandleFunc("GET /api/projects/{slug}/ready", s.projectReady)

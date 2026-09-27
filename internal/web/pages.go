@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/MrtnOmwenga/lighthouse/internal/hub"
+	"github.com/MrtnOmwenga/lighthouse/internal/site"
 	"github.com/MrtnOmwenga/lighthouse/internal/status"
 	"github.com/MrtnOmwenga/lighthouse/internal/store"
 )
@@ -19,15 +19,7 @@ var funcs = template.FuncMap{
 	"sparkline": func(m status.Monitor, now time.Time) template.HTML {
 		return status.Sparkline(m.Latency, 24*time.Hour, now)
 	},
-	"pct": func(p *float64) string {
-		if p == nil {
-			return "–"
-		}
-		if *p == 100 {
-			return "100%"
-		}
-		return fmt.Sprintf("%.2f%%", *p)
-	},
+	"pct": pct,
 	"ms": func(v *float64) string {
 		if v == nil {
 			return "–"
@@ -43,8 +35,13 @@ var funcs = template.FuncMap{
 		}
 		return humanDuration(end.Sub(i.StartedAt))
 	},
-	"inc":   func(i int) int { return i + 1 },
-	"words": func(s string) string { return strings.ReplaceAll(s, "_", " ") },
+	"inc": func(i int) int { return i + 1 },
+	// figure selects an illustration and its size for the "figure" template.
+	"figure": func(kind, variant string) map[string]string {
+		return map[string]string{"Kind": kind, "Variant": variant}
+	},
+	"dateline": func(t time.Time) string { return t.In(nairobi).Format("Monday 2 January 2006") },
+	"words":    func(s string) string { return strings.ReplaceAll(s, "_", " ") },
 	// latest is the most recent update written for people (not a status or severity change).
 	"latest": func(events []store.Event) *store.Event {
 		for i := len(events) - 1; i >= 0; i-- {
@@ -54,6 +51,26 @@ var funcs = template.FuncMap{
 		}
 		return nil
 	},
+}
+
+// nairobi is the dateline's time zone (fixed: Kenya has no daylight saving).
+var nairobi = time.FixedZone("EAT", 3*60*60)
+
+func pct(p *float64) string {
+	if p == nil {
+		return "–"
+	}
+	if *p == 100 {
+		return "100%"
+	}
+	return fmt.Sprintf("%.2f%%", *p)
+}
+
+func msOrEmpty(v *float64) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%.0f ms", *v)
 }
 
 func ago(t time.Time) string {
@@ -92,19 +109,28 @@ type pageData struct {
 	Owner   string
 	Section string // highlighted in the navigation
 	Now     time.Time
-	Page    status.Page
+	Site    *site.Site
+	Status  status.Page
+	// front page
+	Ticker                         []tickerItem
+	Leads, Sides, Features, Briefs []card
+	Incidents14d                   int
+	// projects index
+	Cards     []card
+	LiveCount int
+	// a project's story and launch page
+	Card  *card
+	Story *site.Story
+	Next  *card
 	// incident page
 	Incident *status.Incident
 	// error page
 	Title, Message string
-	// hub and launch pages
-	Catalog *hub.Catalog
-	Cards   []projectCard
-	Project *hub.Project
 }
 
 func (s *Server) render(w http.ResponseWriter, status int, name string, data pageData) {
 	data.Owner = s.Config.OwnerName
+	data.Site = s.Site
 	if data.Now.IsZero() {
 		data.Now = s.Now()
 	}
@@ -132,7 +158,7 @@ func (s *Server) statusPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "public, max-age=15")
-	s.render(w, http.StatusOK, "status.html", pageData{Section: "status", Now: now, Page: page})
+	s.render(w, http.StatusOK, "status.html", pageData{Section: "status", Now: now, Status: page, Incidents14d: len(page.Active) + len(page.Recent)})
 }
 
 func (s *Server) publicStatus(w http.ResponseWriter, r *http.Request) {

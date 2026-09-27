@@ -1,0 +1,67 @@
+{{/* Illustrations in the paper's two colours. Called as {{template "figure" (figure kind variant)}}. */}}
+{{define "figure"}}
+{{if eq .Kind "redacted"}}
+  {{if eq .Variant "hero"}}
+  <div class="fig fig-panes" aria-hidden="true">
+    <div class="pane"><header><span>Director</span><span>TOP SECRET</span></header><div class="text">
+      <p>Operation NIGHTJAR begins at dawn.</p><p>The contact is a retired cartographer in the old port.</p><p>Extraction by sea, pier four, at 0400.</p>
+      <p class="note">Cleared for every word.</p></div></div>
+    <div class="pane"><header><span>Analyst</span><span>SECRET</span></header><div class="text">
+      <p>Operation NIGHTJAR begins at dawn.</p><p>The contact is a retired cartographer in the old port.</p><p>Extraction by <span class="bar">sea, pier four, at 0400</span>.</p>
+      <p class="note">The extraction plan is above Secret.</p></div></div>
+    <div class="pane"><header><span>Intern</span><span>UNCLASSIFIED</span></header><div class="text">
+      <p>Operation <span class="bar">NIGHTJAR</span> begins at dawn.</p><p>The contact is <span class="bar">a retired cartographer</span> in the old port.</p><p>Extraction by <span class="bar">sea, pier four, at 0400</span>.</p>
+      <p class="note">Bars only. The words never arrive.</p></div></div>
+  </div>
+  {{else}}
+  <div class="fig fig-redacted" aria-hidden="true">
+    <p class="label">Briefing · seen by the Intern</p>
+    <p>Operation <span class="bar">NIGHTJAR</span> begins at dawn. The contact is <span class="bar">a retired cartographer</span> in the old port. Extraction by <span class="bar">sea, pier four</span>.</p>
+  </div>
+  {{end}}
+{{else if eq .Kind "chain"}}
+  <div class="fig" role="img" aria-label="Messages linked in a signed hash chain">
+    <svg viewBox="0 0 340 96">
+      <g font-family="Plex Condensed, sans-serif" font-size="10" fill="#5C534B" text-anchor="middle">
+        <text x="47" y="86">message</text><text x="131" y="86">signed</text><text x="215" y="86">hash-chained</text><text x="299" y="86">encrypted</text>
+      </g>
+      <g fill="#FAEEE3" stroke="#1E1B18" stroke-width="1.5">
+        <rect x="16" y="26" width="62" height="44"/><rect x="100" y="26" width="62" height="44"/><rect x="184" y="26" width="62" height="44"/>
+      </g>
+      <rect x="268" y="26" width="62" height="44" fill="#1E1B18"/>
+      <path d="M26 40H68M26 48H60M26 56H64M110 40H152M110 48H144M110 56H148M194 40H236M194 48H228M194 56H232" stroke="#1E1B18" stroke-width="2"/>
+      <path d="M78 48H100M162 48H184M246 48H268" stroke="#93203A" stroke-width="2.5"/>
+    </svg>
+  </div>
+{{else if eq .Kind "architecture"}}
+  <div class="fig fig-wide" role="img" aria-label="Visitors reach Lighthouse through Cloudflare; Lighthouse checks the demos and keeps results in PostgreSQL">
+    <svg viewBox="0 0 740 200">
+      <rect x="200" y="14" width="526" height="172" fill="none" stroke="#1E1B18" stroke-dasharray="4 4"/>
+      <text x="212" y="32" font-family="Plex Condensed, sans-serif" font-size="12" font-weight="700" fill="#1E1B18">ONE SMALL CLUSTER</text>
+      <g font-family="Plex Condensed, sans-serif" font-size="14" font-weight="600" fill="#1E1B18" text-anchor="middle">
+        <rect x="16" y="78" width="72" height="44" fill="#FAEEE3" stroke="#1E1B18" stroke-width="1.5"/><text x="52" y="105">Visitors</text>
+        <rect x="108" y="78" width="80" height="44" fill="#FAEEE3" stroke="#1E1B18" stroke-width="1.5"/><text x="148" y="105">Cloudflare</text>
+        <rect x="232" y="74" width="126" height="52" fill="#1E1B18"/><text x="295" y="105" fill="#FAEEE3">Lighthouse</text>
+        <rect x="420" y="46" width="130" height="40" fill="#FAEEE3" stroke="#1E1B18" stroke-width="1.5"/><text x="485" y="71">Redacted</text>
+        <rect x="420" y="114" width="130" height="40" fill="#FAEEE3" stroke="#1E1B18" stroke-width="1.5"/><text x="485" y="139">GhostChat</text>
+        <rect x="598" y="80" width="112" height="40" fill="#FAEEE3" stroke="#1E1B18" stroke-width="1.5"/><text x="654" y="105">PostgreSQL</text>
+      </g>
+      <path d="M88 100H108M188 100H232" stroke="#1E1B18" stroke-width="2"/>
+      <path d="M358 92L420 66M358 108L420 134" stroke="#93203A" stroke-width="2.5" stroke-dasharray="6 4"/>
+      <path d="M358 100H598" stroke="#1E1B18" stroke-width="1.5"/>
+      <text x="376" y="168" font-family="Plex Condensed, sans-serif" font-size="12" fill="#93203A">checks every 30 s</text>
+    </svg>
+  </div>
+{{else if eq .Kind "devices"}}
+  <div class="fig" role="img" aria-label="A laptop and a tablet exchanging files directly">
+    <svg viewBox="0 0 340 120">
+      <rect x="40" y="26" width="110" height="68" fill="#FAEEE3" stroke="#1E1B18" stroke-width="1.5"/>
+      <path d="M28 94H162L154 104H36Z" fill="#1E1B18"/>
+      <rect x="226" y="18" width="70" height="92" rx="8" fill="#FAEEE3" stroke="#1E1B18" stroke-width="1.5"/>
+      <path d="M52 42H112M52 52H128M52 62H100M238 34H284M238 44H276M238 54H280" stroke="#1E1B18" stroke-width="2"/>
+      <path d="M166 54H212M212 54l-7-5M212 54l-7 5M212 70H166M166 70l7-5M166 70l7 5" stroke="#93203A" stroke-width="2.5" fill="none"/>
+      <text x="189" y="92" text-anchor="middle" font-family="Plex Condensed, sans-serif" font-size="10" fill="#5C534B">local network</text>
+    </svg>
+  </div>
+{{end}}
+{{end}}

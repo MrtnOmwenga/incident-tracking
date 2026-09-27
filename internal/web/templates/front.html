@@ -1,0 +1,137 @@
+{{template "head" (printf "The Lighthouse · %s" .Owner)}}
+<meta name="description" content="The engineering portfolio of {{.Owner}}: live projects, how they were built, and the system that monitors them.">
+</head>
+<body>
+{{template "masthead" .}}
+
+{{with .Ticker}}
+<div class="ticker" aria-label="Live systems">
+  <span class="tag">LIVE SYSTEMS</span>
+  <div class="viewport"><div class="track">
+    {{range .}}<span class="item"><b>{{.Name}}</b><span {{if .Down}}class="down"{{end}}>{{.Value}}</span><span class="muted">{{.Detail}}</span></span>{{end}}
+    {{range .}}<span class="item" aria-hidden="true"><b>{{.Name}}</b><span {{if .Down}}class="down"{{end}}>{{.Value}}</span><span class="muted">{{.Detail}}</span></span>{{end}}
+  </div></div>
+</div>
+{{end}}
+
+<main id="main">
+{{with .Site.Profile}}
+<section class="wrap section grid">
+  <article class="span-8 stack lead">
+    {{with .Lead.Kicker}}<span class="kicker">{{.}}</span>{{end}}
+    <h1>{{.Lead.Headline}}</h1>
+    {{with .Lead.Standfirst}}<p class="standfirst">{{.}}</p>{{end}}
+    {{with .Lead.Paragraphs}}<div class="two-col body">{{range $i, $p := .}}<p {{if eq $i 0}}class="drop"{{end}}>{{$p}}</p>{{end}}</div>{{end}}
+  </article>
+  <aside class="span-4 stack">
+    {{with .Portrait}}
+    <figure class="portrait">
+      <img src="/media/{{.}}" alt="Portrait of {{$.Owner}}" width="1024" height="672">
+      {{with $.Site.Profile.PortraitCaption}}<figcaption class="caption">{{.}}</figcaption>{{end}}
+    </figure>
+    {{end}}
+    <div class="panel">
+      <p class="label">At a glance</p>
+      {{range .Glance}}<div class="row"><span class="k">{{.Label}}</span><span class="v">{{.Value}}</span></div>{{end}}
+      <div class="actions">
+        {{with .Links.Email}}<a class="button" href="mailto:{{.}}">Email</a>{{end}}
+        {{with .Links.LinkedIn}}<a class="button" href="{{.}}" rel="me noopener">LinkedIn</a>{{end}}
+        {{with .Links.GitHub}}<a class="button" href="{{.}}" rel="me noopener">GitHub</a>{{end}}
+      </div>
+    </div>
+  </aside>
+</section>
+
+{{with .HowTo}}
+<section class="wrap"><div class="howto">
+  {{range $i, $s := .}}<div class="step"><span class="n">{{inc $i}}</span><div class="stack-sm"><span class="t">{{$s.Title}}</span><span class="d">{{$s.Body}}</span></div></div>{{end}}
+</div></section>
+{{end}}
+{{end}}
+
+<section class="wrap section">
+  <h2 class="section-title">Live projects</h2>
+</section>
+<section class="wrap section grid">
+  {{range .Leads}}
+  <article class="span-8 ruled stack story">
+    <span class="kicker">{{.Kicker}}</span>
+    <h2><a href="/projects/{{.Slug}}" class="headline-link">{{.Headline}}</a></h2>
+    {{with .Standfirst}}<p class="standfirst italic">{{.}}</p>{{end}}
+    <div class="two-col">
+      <figure class="stack-sm plain-figure">{{template "figure" (figure .Figure "card")}}</figure>
+      <div class="stack">
+        <p class="plain"><b>In plain terms.</b> {{.Plain}}</p>
+        <p class="hood"><b>Under the hood.</b> {{.Hood}}</p>
+        {{template "status-line" .}}
+      </div>
+    </div>
+    {{template "story-actions" .}}
+  </article>
+  {{end}}
+  {{range .Sides}}
+  <article class="span-4 stack story side">
+    <span class="kicker">{{.Kicker}}</span>
+    <h2><a href="/projects/{{.Slug}}" class="headline-link">{{.Headline}}</a></h2>
+    {{template "figure" (figure .Figure "card")}}
+    <p class="plain"><b>In plain terms.</b> {{.Plain}}</p>
+    <p class="hood"><b>Under the hood.</b> {{.Hood}}</p>
+    {{template "status-line" .}}
+    {{template "story-actions" .}}
+  </article>
+  {{end}}
+</section>
+
+<section class="wrap section grid rule-top">
+  {{range .Features}}
+  <article class="span-8 ruled stack story">
+    <span class="kicker">{{.Kicker}}</span>
+    <h2><a href="/projects/{{.Slug}}" class="headline-link">{{.Headline}}</a></h2>
+    {{with .Standfirst}}<p class="standfirst italic">{{.}}</p>{{end}}
+    {{template "figure" (figure .Figure "card")}}
+    <div class="two-col">
+      <p class="plain"><b>In plain terms.</b> {{.Plain}}</p>
+      <p class="hood"><b>Under the hood.</b> {{.Hood}}</p>
+    </div>
+    {{template "story-actions" .}}
+  </article>
+  {{end}}
+  <aside class="span-4 stack">
+    <div class="systems rule-top-claret">
+      <div class="systems-head">
+        <h3>Systems data</h3>
+        <a class="more" href="/status">Full status →</a>
+      </div>
+      {{if .Status.Monitors}}
+      <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th scope="col">Project</th><th scope="col" class="num">Uptime, 90 d</th><th scope="col" class="spark-cell">Response, 24 h</th></tr></thead>
+        <tbody>
+          {{range .Status.Monitors}}
+          <tr><td class="name"><span class="dot sm {{.Health}}" aria-hidden="true"></span>{{.Name}}</td><td class="num">{{pct .Uptime90d}}</td><td class="spark-cell">{{sparkline . $.Now}}</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+      </div>
+      {{else}}<p class="caption systems-empty">Monitoring data appears here once the first checks have run.</p>{{end}}
+    </div>
+    {{range .Briefs}}
+    <div class="stack-sm story brief rule-top-thin">
+      <span class="kicker small">{{.Kicker}}</span>
+      <h3><a href="/projects/{{.Slug}}" class="headline-link">{{.Headline}}</a></h3>
+      <p class="hood">{{.Hood}}</p>
+      <a class="more" href="{{if .HasStory}}/projects/{{.Slug}}{{else}}{{.Repo}}{{end}}">{{if .HasStory}}Read the story →{{else}}Read the code →{{end}}</a>
+    </div>
+    {{end}}
+  </aside>
+</section>
+</main>
+{{template "foot" .}}
+
+{{define "story-actions"}}
+<div class="actions">
+  {{if .Demo}}<a class="button primary" href="/go/{{.Slug}}">Launch the demo →</a>{{end}}
+  {{if .HasStory}}<a class="button" href="/projects/{{.Slug}}">Read the story</a>{{end}}
+  {{with .Repo}}<a class="button" href="{{.}}" rel="noopener">Code</a>{{end}}
+</div>
+{{end}}

@@ -40,9 +40,9 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       OWNER_GITHUB_ID: ${OWNER_GITHUB_ID:-}
       CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-}
-      PROJECTS_FILE: /config/projects.yaml
+      SITE_DIR: /site
     volumes:
-      - ${PROJECTS_DIR:-./deploy}:/config:ro,z
+      - ${SITE_DIR:-./deploy/site}:/site:ro,z
     depends_on:
       migrate: { condition: service_completed_successfully }
     read_only: true
