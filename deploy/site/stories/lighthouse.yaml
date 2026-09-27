@@ -1,0 +1,114 @@
+read_minutes: 7
+updated: September 2026
+figure_caption: >-
+  Lighthouse serves these pages, checks every project on a schedule, and keeps its results and
+  incidents in PostgreSQL.
+
+problem:
+  title: The problem
+  paragraphs:
+    - >-
+      A portfolio of live demos has two problems. Demos go down, and a recruiter who clicks a dead
+      link doesn't come back. And hosting is expensive: keeping several apps running around the
+      clock on a free tier means they sleep when idle, so the first visitor waits in front of a
+      blank page, or thinks it's broken.
+    - >-
+      Lighthouse turns both into features. It watches every project and publishes what it finds,
+      including its failures, and it turns a sleeping demo's cold start into a short, readable
+      introduction.
+
+solution:
+  title: How it works
+  paragraphs:
+    - >-
+      A scheduler finds monitors that are due and checks them with a bounded pool of workers:
+      HTTP checks for the real projects, simulated ones for the public sandbox. Each result goes
+      through a small state machine that opens an incident after several failures in a row and
+      closes it after several successes, so one blip never pages anyone and a flapping site doesn't
+      open an incident every minute.
+    - >-
+      It also counts its readers without cookies: a visitor is a hash of their IP address keyed
+      with a salt that is deleted every day, browsers asking not to be tracked are skipped, and
+      public numbers under five are hidden.
+    - >-
+      Everything is one Go binary with server-rendered pages. The owner signs in with GitHub (one
+      account is admitted); visitors can create a throwaway sandbox with its own monitors, isolated
+      from everything else by PostgreSQL row-level security. When a visitor launches a demo, the
+      launch page polls the demo's health address, which also wakes it, and opens the demo when it
+      answers.
+
+quote: >-
+  Every figure on these pages is measured by the site itself, and so is every outage.
+
+steps:
+  caption: How a check becomes an incident, and how it closes again.
+  items:
+    - { title: Claim, body: "An atomic update claims a due monitor, so no two workers or instances check it twice." }
+    - { title: Probe, body: "The check runs outside any database transaction, through a guard that blocks internal addresses." }
+    - { title: Record, body: "The result and the monitor's new state are saved together, under a row lock." }
+    - { title: Open or resolve, body: "Crossing a threshold opens or resolves the incident, with a public timeline entry." }
+
+decisions:
+  - title: The database is the queue
+    choice: Due monitors are claimed with one conditional UPDATE, instead of a separate queue or lock service.
+    why: Nothing extra to run on a small cluster, and instances can be added freely. A test runs four schedulers against the same monitors and checks each is checked exactly once.
+    trade_off: Scheduling precision is bounded by the polling tick (one second), which is plenty for uptime checks.
+  - title: Probes never hold a transaction
+    choice: Claim in one short transaction, probe with no database connection held, record in another.
+    why: A check can take up to 30 seconds. Holding a connection that long would cap concurrency at the pool size.
+    trade_off: A monitor deleted while its probe runs has to be handled on the way back, and is.
+  - title: Guard against SSRF after DNS resolution
+    choice: The dialer checks the address actually being connected to, rejecting private, loopback, link-local and shared ranges.
+    why: Checking the URL alone misses hostnames that resolve inward, DNS rebinding and redirects. Checking at dial time catches all three.
+    trade_off: The owner has to opt in per monitor to watch services inside the cluster.
+  - title: Hysteresis in a pure state machine
+    choice: The rules for opening and resolving incidents live in one pure function, separate from the database.
+    why: It can be tested exhaustively. Property tests run random check sequences and assert an incident is never opened twice, never resolved without one, and always matches the monitor's health.
+    trade_off: None worth noting; it made the scheduler simpler.
+  - title: Server-rendered, and complete without JavaScript
+    choice: Go templates for every public page; the only script is the launch page's slideshow.
+    why: These pages are read far more than anything else, and a status page has to work when things are broken. Go's templates escape by context.
+    trade_off: Richer interactions (a console for the sandbox) will need a small client later.
+  - title: Visibility fixed at creation
+    choice: An incident's public flag is copied from its monitor when it opens.
+    why: Deriving it at read time would have made a private monitor's incidents public the moment the monitor was deleted.
+    trade_off: Changing a monitor's visibility doesn't change its past incidents.
+
+testing:
+  title: How it is tested
+  paragraphs:
+    - >-
+      Integration tests run against real PostgreSQL in containers, each test with its own database
+      cloned from a migrated template in milliseconds. They try to read, change and link to another
+      tenant's rows, and to switch row-level security off as the application's role. The HTTP tests
+      sign in against a fake GitHub (owner, stranger, forged state) and check the public pages leak
+      nothing private.
+    - >-
+      Everything runs under Go's race detector, with property tests (rapid) and fuzzing for the
+      input validation and the charts. The key tests were checked to fail with their protection
+      removed: the RLS policy, atomic claiming, the origin check, the owner check and
+      private-incident hiding. CI adds staticcheck, govulncheck, gitleaks, CodeQL and a Trivy scan
+      of the image.
+
+limits:
+  title: What it doesn't do yet
+  paragraphs:
+    - >-
+      The console for the sandbox and owner, guided tours for demos, and the production deployment (Terraform and k3s on Oracle Cloud's free tier, behind Cloudflare) are
+      the next phases. Aggregations are computed from raw checks on each request, which is fine at
+      this scale; daily rollups would be the first optimization.
+
+numbers:
+  - { value: "30 s", label: between checks }
+  - { value: "1", label: "binary serving pages, checks and incidents" }
+  - { value: "0", label: JavaScript needed to read any page }
+  - { value: "5", label: "static and security checks in CI" }
+
+fact_file:
+  - { label: What it is, value: "An uptime monitor, status page and demo launcher" }
+  - { label: Role, value: "Sole engineer: design, build and tests" }
+  - { label: Stack, value: "Go · PostgreSQL · html/template · Docker" }
+  - { label: Security, value: "Row-level security · SSRF guard · strict CSP" }
+  - { label: Tests, value: "testcontainers-go · race detector · rapid · fuzzing" }
+
+call_to_action: See what it has measured so far.

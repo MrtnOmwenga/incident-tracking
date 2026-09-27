@@ -1,0 +1,63 @@
+{{with .Card}}{{template "head" (printf "Starting %s · The Lighthouse" .Name)}}{{end}}
+<script src="/static/launch.js" defer></script>
+</head>
+<body>
+{{with .Card}}
+<div class="live-band" data-band hidden><div class="wrap">
+  <span class="live">LIVE</span>
+  <span class="msg">{{.Name}} is up and running.</span>
+  <a class="button light" href="{{.Demo}}" data-open>Open {{.Name}} →</a>
+</div></div>
+{{end}}
+{{template "masthead" .}}
+{{with .Card}}
+<main id="main" class="launch" data-launch data-slug="{{.Slug}}" data-demo="{{.Demo}}" data-name="{{.Name}}" {{with .Tour}}data-tour="{{.}}"{{end}}>
+  <div class="launch-inner">
+    <div class="developing" aria-live="polite">
+      <span class="tag"><span class="pulse" aria-hidden="true"></span><span data-tag>DEVELOPING</span></span>
+      <span class="what" data-state>Starting {{.Name}}</span>
+      <span class="detail" data-detail>Demos sleep when idle; waking one takes up to a minute. Meanwhile, the story so far.</span>
+      <span class="clock" data-clock aria-hidden="true"></span>
+      <button type="button" class="button" data-skip hidden>Skip intro</button>
+    </div>
+
+    <ol class="slides" aria-roledescription="carousel" aria-label="Introduction to {{.Name}}">
+      {{$n := len .Intro}}
+      {{range $i, $s := .Intro}}
+      <li class="slide" aria-roledescription="slide" aria-label="Part {{inc $i}} of {{$n}}" data-part="{{with $s.Kicker}}{{.}}{{else}}Part {{inc $i}}{{end}}">
+        <div class="main">
+          <span class="kicker">Part {{inc $i}} of {{$n}}{{with $s.Kicker}} · {{.}}{{end}}</span>
+          <h1>{{$s.Title}}</h1>
+          {{with $s.Plain}}<p class="plain">{{.}}</p>{{end}}
+          <p class="hood"><b>Under the hood.</b> {{$s.Body}}</p>
+        </div>
+        {{with $s.Facts}}
+        <aside class="glance panel">
+          <p class="label">At a glance</p>
+          {{range .}}<div class="fact"><span class="v">{{.Value}}</span><span class="k">{{.Label}}</span></div>{{end}}
+        </aside>
+        {{end}}
+      </li>
+      {{end}}
+      <li class="slide final" aria-label="Ready" data-part="Open it">
+        <div class="main">
+          <span class="kicker">{{.Name}}</span>
+          <h1>Ready when you are</h1>
+          <p class="plain" data-waiting>Still starting. It will open as soon as it's up.</p>
+          <div class="choices">
+            <a class="button primary" href="{{.Demo}}" data-open>Open {{.Name}} →</a>
+            {{with .Tour}}<a class="button" href="{{.}}">Take the guided tour</a>{{end}}
+          </div>
+        </div>
+      </li>
+    </ol>
+
+    <nav class="parts" aria-label="Parts of the introduction" data-parts></nav>
+    <p class="launch-foot">
+      <a href="/projects/{{.Slug}}">Read the full story</a>
+      {{with .Repo}}<a href="{{.}}" rel="noopener">Code</a>{{end}}
+    </p>
+  </div>
+</main>
+{{end}}
+{{template "foot" .}}
