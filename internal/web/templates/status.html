@@ -1,0 +1,77 @@
+{{template "head" (printf "%s · Status" .Owner)}}
+<meta http-equiv="refresh" content="60">
+<meta name="description" content="Live status of {{.Owner}}'s projects.">
+</head>
+<body>
+{{template "brand" .Owner}}
+<main class="wrap">
+
+  <section class="banner {{.Page.Overall}}" aria-live="polite">
+    <span class="dot" aria-hidden="true"></span>
+    <div>
+      <h1>{{.Page.Overall.Label}}</h1>
+      <p>Updated {{when .Now}} · refreshes every minute</p>
+    </div>
+  </section>
+
+  {{with .Page.Active}}
+  <section aria-labelledby="active">
+    <h2 id="active">Ongoing incidents</h2>
+    {{range .}}
+    <article class="incident {{.Severity}}">
+      <header>
+        <a href="/status/incidents/{{.ID}}"><h3>{{.Title}}</h3></a>
+        <span class="pill {{.Status}}">{{words .Status}}</span>
+      </header>
+      {{with latest .Events}}<p>{{.Message}} <span class="muted">— {{ago .At}}</span></p>{{end}}
+      <p class="muted">Started {{when .StartedAt}} · {{duration .Incident $.Now}} so far</p>
+    </article>
+    {{end}}
+  </section>
+  {{end}}
+
+  <section aria-labelledby="systems">
+    <h2 id="systems">Systems</h2>
+    {{if not .Page.Monitors}}<p class="muted">Nothing is monitored yet.</p>{{end}}
+    <ul class="monitors">
+    {{range .Page.Monitors}}
+      <li class="monitor">
+        <div class="row">
+          <h3><span class="health {{.Health}}" aria-hidden="true"></span>{{.Name}}</h3>
+          <span class="state {{.Health}}">{{if eq .Health "up"}}Operational{{else if eq .Health "down"}}Down{{else}}Checking…{{end}}</span>
+        </div>
+        <div class="bars" role="img" aria-label="Daily uptime, last 90 days: {{pct .Uptime90d}}">
+          {{range .Days}}<span class="{{.Bar}}" title="{{.Title}}"></span>{{end}}
+        </div>
+        <div class="axis muted"><span>90 days ago</span><span>{{pct .Uptime90d}} uptime</span><span>Today</span></div>
+        <details>
+          <summary>Last 24 hours</summary>
+          <div class="detail">
+            {{sparkline . $.Now}}
+            <dl>
+              <div><dt>Uptime (24 h)</dt><dd>{{pct .Uptime24h}}</dd></div>
+              <div><dt>Uptime (7 d)</dt><dd>{{pct .Uptime7d}}</dd></div>
+              <div><dt>Median response</dt><dd>{{ms .P50}}</dd></div>
+              <div><dt>95th percentile</dt><dd>{{ms .P95}}</dd></div>
+            </dl>
+          </div>
+        </details>
+      </li>
+    {{end}}
+    </ul>
+  </section>
+
+  <section aria-labelledby="history">
+    <h2 id="history">Past incidents (14 days)</h2>
+    {{if not .Page.Recent}}<p class="muted">No incidents in the last 14 days.</p>{{end}}
+    <ul class="history">
+    {{range .Page.Recent}}
+      <li>
+        <a href="/status/incidents/{{.ID}}">{{.Title}}</a>
+        <span class="muted">{{when .StartedAt}} · lasted {{duration .Incident $.Now}}</span>
+      </li>
+    {{end}}
+    </ul>
+  </section>
+</main>
+{{template "foot"}}

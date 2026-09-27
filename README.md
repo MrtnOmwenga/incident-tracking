@@ -1,84 +1,102 @@
-# Docker Development Environment Setup
+# Lighthouse
 
-## Overview
-This repository uses Docker and Docker Compose to run a full-stack application with:
-- Frontend (Node.js/Vite)
-- Backend (Go)
-- PostgreSQL database
-- Database migrations
+An uptime monitor and status page, written in Go. It checks my portfolio projects, opens and
+resolves incidents on its own, and publishes a status page anyone can read. Anyone can also try it
+in a sandbox, without an account.
 
-## Prerequisites
-- Docker
-- Docker Compose
-- `.env` file with required variables:
-  ```
-  DB_USER=
-  DB_PASSWORD=
-  DB_NAME=
-  ```
+![The public status page](docs/status-light.png)
 
-## Quick Start
-1. Create `.env` file with required variables
-2. Run migrations:
-   ```bash
-   docker compose --profile migrate up migration -d
-   ```
-3. Start services:
-   ```bash
-   docker compose up
-   ```
+<sub>A local run with simulated monitors and generated history.</sub>
 
-## Architecture Details
+## What it does
 
-### Service Configuration
+- **Checks sites** over HTTP on a schedule: status code range, expected text and response time, recording
+  each TLS certificate's expiry date. A pool of workers runs checks concurrently, and several instances can share
+  one database without checking anything twice.
+- **Opens and resolves incidents automatically.** A monitor must fail several checks in a row to be
+  declared down, and pass several in a row to recover (hysteresis), so one blip doesn't page anyone
+  and a flapping site doesn't open an incident every minute.
+- **Incident timelines** with public updates and internal notes. Only public updates reach the
+  status page.
+- **A public status page** rendered on the server, no JavaScript: overall state, 90 days of daily
+  uptime, 24-hour response-time sparklines (SVG drawn in Go), median and 95th-percentile latency,
+  and past incidents. Also available as JSON at `/api/status`.
+- **A sandbox for visitors:** one click creates a private, throwaway workspace with simulated sites
+  to break and fix (`up`, `slow`, `flaky`, `down`), and it expires after two hours.
+- **The owner signs in with GitHub.** Only one GitHub account is admitted.
 
-#### Frontend (`frontend` service)
-- Built from Node.js 22 Alpine image
-- Runs on port 3000 (mapped from container port 5173)
-- Volume mounts for hot reloading:
-  - `./frontend:/app`: Source code
-  - `/app/node_modules`: Persisted node_modules
-- Depends on backend service
-- Runs npm install, seeds data, and starts dev server
-- Uses Vite for development
+## Security
 
-#### Backend (`backend` service)
-- Built from Go 1.23 Alpine image
-- Runs on port 8080
-- Volume mounts:
-  - `./backend:/app`: Source code
-  - `/app/go/pkg/mod`: Go modules cache
-- Healthcheck configured for startup validation
-- Installs Wire for dependency injection
-- Compiles and runs the application
+| Concern | How it's handled |
+|---|---|
+| One visitor seeing another's data | PostgreSQL row-level security, forced on every table and keyed on a transaction-local tenant. The app connects as a role that can't bypass or disable it; a query without a tenant sees nothing. Composite foreign keys stop rows from pointing across tenants. |
+| Using the monitor to reach internal services (SSRF) | Checks refuse private, loopback, link-local and CGNAT addresses. The check runs on the address actually dialled, after DNS, so hostnames that resolve inward and redirects are caught too. Sandboxes can't send real traffic at all. |
+| Leaking internals on the status page | Failures are stored as categories (`timeout`, `tls`, …), never raw errors. Incidents on private monitors stay private, even after the monitor is deleted. |
+| Session theft and CSRF | Random session tokens in HttpOnly, SameSite cookies; the database stores only their SHA-256. Writes from other origins are refused. OAuth state is bound to the browser. |
+| Abuse | Rate limits on sandbox creation and writes; strict JSON decoding with size limits; a strict Content Security Policy. |
+| Unsafe deployments | Configuration refuses to start in production with the development login enabled, without HTTPS, or without the owner's GitHub ID, and lists every problem at once. |
 
-#### Database (`postgres` service)
-- PostgreSQL 15 Alpine image
-- Persistent volume for data storage
-- Healthcheck for readiness validation
-- Standard port 5432 exposed
+## Tests
 
-#### Migrations (`migration` service)
-- Uses official migrate/migrate image
-- Runs in separate profile for controlled execution
-- Depends on postgres service
-- Automatically applies migrations from ./backend/migrations
+```sh
+go test -race ./...
+```
 
-### Key Design Decisions
+- **Integration tests against real PostgreSQL** (testcontainers-go). Each test gets its own
+  database, cloned from a migrated template in milliseconds, so tests run in parallel.
+- **Isolation tests** that try to read, change and link to another tenant's rows, and try to switch
+  row-level security off as the app role.
+- **Property tests** (rapid) for the incident state machine over random check sequences, and for
+  uptime rounding.
+- **Fuzzing** for monitor validation and the SVG sparkline.
+- **End-to-end HTTP tests:** GitHub sign-in against a fake GitHub (owner, stranger, forged state),
+  sandbox isolation, cross-site requests, status-page leaks, incident pagination.
+- The important tests have been checked to fail when the protection they cover is removed
+  (the RLS policy, atomic claiming, the origin check, the owner check, private-incident hiding).
 
-1. **Volume Mounts**
-   - Development-optimized with hot reloading
-   - Persistent volumes for dependencies and DB data
-   - Separate bind mounts for source code
+CI runs gofmt, `go vet`, staticcheck, the tests with the race detector, fuzzing, govulncheck,
+gitleaks, CodeQL, a Trivy scan of the image, and a Docker Compose smoke test.
 
-2. **Health Checks**
-   - Ensures proper startup order
-   - Configurable retry and timeout parameters
-   - Critical for CI/CD reliability
+## Run it
 
-3. **Dependency Management**
-   - Dependencies installed at runtime for development
-   - Wire tool installation included in backend
-   - Node modules isolated in named volume
+```sh
+cp .env.example .env   # set the two passwords; DEV_LOGIN=true for a local owner login
+docker compose up --build
+```
 
-AWS access portal URL: https://d-9067c3daf6.awsapps.com/start, Username: admin, One-time password: u!2Hs)r29ry^%UDNVWj&3uXu1UCvZSkhEa3^NWRTXkmV5o8X>*c4Vh.r-w.7s4
+Then open <http://localhost:8080/status>. `POST /auth/dev` signs you in as the owner locally;
+`POST /api/sandbox` starts a sandbox.
+
+The image is a static binary on a distroless base, running as a non-root user with a read-only
+filesystem. `lighthouse migrate` applies migrations as the database owner and creates the app's
+least-privileged role; `lighthouse serve` runs the server, scheduler and housekeeping.
+
+## Design
+
+```
+cmd/lighthouse       serve | migrate | healthcheck
+internal/config      settings from the environment, validated together
+internal/store       PostgreSQL: migrations, row-level security, queries
+internal/monitor     probes (HTTP, simulated), the incident state machine, the scheduler
+internal/status      status page data and the SVG sparkline
+internal/auth        sessions, GitHub OAuth, sandboxes
+internal/web         routes, middleware, HTML templates, the JSON API
+```
+
+Choices worth explaining:
+
+- **Server-rendered pages.** The status page is read far more often than anything else, and it
+  should load fast and work when things are broken. Go's `html/template` escapes by context,
+  and the page needs no JavaScript.
+- **The database is the queue.** Due monitors are claimed with one atomic `UPDATE`, so there is no
+  separate queue or lock service to run, and instances can be added freely.
+- **Probes run outside transactions.** A check can take 30 seconds; holding a database
+  connection that long would limit concurrency to the pool size.
+
+## Roadmap
+
+- A hub page listing all my projects, with a short introduction while a sleeping demo starts
+- Privacy-friendly visit analytics (no cookies, no stored IPs)
+- A console for the sandbox and the owner
+- Guided tutorials for demos that need one
+- Deployment with Terraform and k3s on Oracle Cloud's free tier, behind Cloudflare

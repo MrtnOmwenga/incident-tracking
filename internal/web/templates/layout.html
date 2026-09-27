@@ -1,0 +1,26 @@
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.}}</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+{{end}}
+
+{{define "brand"}}
+<header class="top">
+  <a class="brand" href="/status">
+    <img src="/static/favicon.svg" alt="" width="22" height="22">
+    <span>{{.}}</span><span class="label">Status</span>
+  </a>
+</header>
+{{end}}
+
+{{define "foot"}}
+<footer class="foot">
+  <p>Monitored by <a href="https://github.com/MrtnOmwenga/lighthouse">Lighthouse</a>, an open-source uptime monitor written in Go.</p>
+</footer>
+</body>
+</html>
+{{end}}

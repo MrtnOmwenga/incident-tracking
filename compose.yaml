@@ -1,89 +1,50 @@
+# Local stack: Postgres, a one-off migration, and Lighthouse on http://localhost:8080.
+# Passwords come from .env (copy .env.example); the database is only reachable inside the stack.
 services:
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+  db:
+    image: docker.io/library/postgres:17-alpine
     environment:
-      - VITE_API_URL=${API_URL}/api/v1
-    depends_on:
-      backend:
-        condition: service_healthy
-    command: > 
-      sh -c "npm install && node seed.js && npm run dev -- --host"
-    networks:
-      - default
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./backend:/app
-      - /app/go/pkg/mod
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - DB_SSL_MODE=disable
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: >
-      sh -c "go install github.com/google/wire/cmd/wire@latest && cd /app && wire ./pkg/containers && go run ./cmd/main.go"
+      POSTGRES_DB: lighthouse
+      POSTGRES_USER: lighthouse_owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes: [db:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/health || exit 1"]
-      interval: 45s
-      timeout: 30s
-      retries: 15
-      start_period: 60s
-    networks:
-      - default
+      test: ["CMD-SHELL", "pg_isready -U lighthouse_owner -d lighthouse"]
+      interval: 2s
+      retries: 30
 
-  migration:
-    image: migrate/migrate
-    volumes:
-      - ./backend/migrations:/migrations
+  # Applies migrations as the owner and creates the API's login role (a member of
+  # lighthouse_app, subject to row-level security).
+  migrate:
+    build: .
+    command: ["migrate"]
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
+      MIGRATE_DATABASE_URL: postgres://lighthouse_owner@db:5432/lighthouse?sslmode=disable
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: postgres://lighthouse_api@db:5432/lighthouse?sslmode=disable
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}
     depends_on:
-      postgres:
-        condition: service_healthy
-    command: ["-path=/migrations", "-database", "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable", "up"]
-    profiles: ["migrate"]
-    networks:
-      - default
+      db: { condition: service_healthy }
 
-  postgres:
-    image: postgres:15-alpine
-    ports:
-      - "5432:5432"
+  lighthouse:
+    build: .
+    ports: ["8080:8080"]
     environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
-      interval: 5s
-      timeout: 5s
-      retries: 15
-      start_period: 30s
-    networks:
-      - default
+      LIGHTHOUSE_ENV: ${LIGHTHOUSE_ENV:-development}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      DATABASE_URL: postgres://lighthouse_api@db:5432/lighthouse?sslmode=disable
+      PGPASSWORD: ${APP_DB_PASSWORD}
+      OWNER_NAME: ${OWNER_NAME:-Lighthouse}
+      DEV_LOGIN: ${DEV_LOGIN:-false}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      OWNER_GITHUB_ID: ${OWNER_GITHUB_ID:-}
+      CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
 
 volumes:
-  postgres_data:
+  db:

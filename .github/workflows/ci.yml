@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Vet, lint, tests (race detector)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+      - name: Formatting
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - run: go vet ./...
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+      - name: Tests (Postgres via testcontainers)
+        run: go test -race -count=1 -coverprofile=coverage.out ./...
+      - run: go tool cover -func=coverage.out | tail -1
+
+  fuzz:
+    name: Fuzzing (short)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+      - run: go test -run='^$' -fuzz=FuzzSparkline -fuzztime=45s ./internal/status
+      - run: go test -run='^$' -fuzz=FuzzNormalize -fuzztime=45s ./internal/web
+
+  security:
+    name: Secrets, vulnerabilities, image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - name: Scan for committed secrets
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+      - name: govulncheck (reachable vulnerabilities in code and dependencies)
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - run: docker build -t lighthouse:ci .
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: lighthouse:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+
+  smoke:
+    name: Compose smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Generate secrets for the stack
+        run: |
+          echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
+          echo "APP_DB_PASSWORD=$(openssl rand -hex 16)" >> .env
+          echo "DEV_LOGIN=true" >> .env
+      - run: docker compose up --build -d --wait lighthouse
+      - name: Status page, API and sandbox answer
+        run: |
+          curl -fsS http://localhost:8080/status | grep -q "status"
+          curl -fsS http://localhost:8080/api/status | grep -q '"overall"'
+          curl -fsS -X POST -H "Origin: http://localhost:8080" -c jar http://localhost:8080/api/sandbox
+          curl -fsS -b jar http://localhost:8080/api/monitors | grep -q Storefront
+      - if: failure()
+        run: docker compose logs

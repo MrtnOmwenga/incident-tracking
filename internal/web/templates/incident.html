@@ -1,0 +1,29 @@
+{{template "head" .Incident.Title}}
+</head>
+<body>
+{{template "brand" .Owner}}
+<main class="wrap">
+  <p><a href="/status">← All systems</a></p>
+  {{with .Incident}}
+  <article class="incident-page {{.Severity}}">
+    <header>
+      <h1>{{.Title}}</h1>
+      <span class="pill {{.Status}}">{{words .Status}}</span>
+    </header>
+    <p class="muted">
+      {{.Severity}} severity · started {{when .StartedAt}}
+      {{if .ResolvedAt}}· resolved {{when .ResolvedAt}} · lasted {{duration .Incident $.Now}}{{else}}· ongoing for {{duration .Incident $.Now}}{{end}}
+    </p>
+    <ol class="timeline">
+      {{range .Events}}
+      <li class="{{.Kind}}">
+        <time datetime="{{.At.UTC.Format "2006-01-02T15:04:05Z"}}">{{when .At}}</time>
+        <p><strong>{{words .Kind}}</strong> — {{.Message}}</p>
+        <p class="muted">{{.Author}}</p>
+      </li>
+      {{end}}
+    </ol>
+  </article>
+  {{end}}
+</main>
+{{template "foot"}}

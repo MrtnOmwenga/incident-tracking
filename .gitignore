@@ -1,5 +1,4 @@
-./env
-
-./backend/.env
-
-./frontend/.env
+.env
+/lighthouse
+/bin/
+coverage.out
