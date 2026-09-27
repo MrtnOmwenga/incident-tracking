@@ -1,4 +1,4 @@
-package hub
+package site
 
 import (
 	"context"

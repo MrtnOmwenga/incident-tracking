@@ -39,6 +39,7 @@ type Monitor struct {
 	Name        string        `json:"name"`
 	Slug        string        `json:"slug"`
 	Health      string        `json:"health"`
+	Checks24h   int           `json:"checks24h"`
 	Uptime24h   *float64      `json:"uptime24h"` // percent; nil without data
 	Uptime7d    *float64      `json:"uptime7d"`
 	Uptime90d   *float64      `json:"uptime90d"`
@@ -86,7 +87,7 @@ func Build(ctx context.Context, pool *pgxpool.Pool, tenantID string, now time.Ti
 		for _, m := range monitors {
 			u := uptime[m.ID]
 			page.Monitors = append(page.Monitors, Monitor{
-				ID: m.ID, Name: m.Name, Slug: m.Slug, Health: m.Health, LastChecked: m.LastCheckedAt,
+				ID: m.ID, Name: m.Name, Slug: m.Slug, Health: m.Health, LastChecked: m.LastCheckedAt, Checks24h: u.Checks24h,
 				Uptime24h: Percent(u.OK24h, u.Checks24h), Uptime7d: Percent(u.OK7d, u.Checks7d), Uptime90d: Percent(u.OK90d, u.Checks90d),
 				P50: round(u.P50), P95: round(u.P95),
 				Days: fillDays(daily[m.ID], now), Latency: series[m.ID],

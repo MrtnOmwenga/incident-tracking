@@ -1,0 +1,77 @@
+{{template "head" (printf "About %s · The Lighthouse" .Owner)}}
+<meta name="description" content="{{.Site.Profile.About.Standfirst}}">
+</head>
+<body>
+{{template "masthead" .}}
+<main id="main">
+{{with .Site.Profile}}{{$a := .About}}
+<section class="wrap section grid border-bottom">
+  {{with .Portrait}}
+  <figure class="span-5 portrait portrait-tall">
+    <img src="/media/{{.}}" alt="Portrait of {{$.Owner}}" width="1024" height="672">
+    {{with $.Site.Profile.PortraitCaption}}<figcaption class="caption">{{.}}</figcaption>{{end}}
+  </figure>
+  {{end}}
+  <div class="span-7 stack about-head justify-center">
+    {{with $a.Kicker}}<span class="kicker">{{.}}</span>{{end}}
+    <h1>{{$a.Headline}}</h1>
+    {{with $a.Standfirst}}<p class="standfirst italic">{{.}}</p>{{end}}
+    {{with $a.Stats}}<div class="stats three">{{range $i, $st := .}}<div class="stat {{if eq $i 0}}claret{{end}}"><span class="k">{{$st.Label}}</span><p class="v">{{$st.Value}}</p></div>{{end}}</div>{{end}}
+  </div>
+</section>
+
+<section class="wrap section grid">
+  <article class="span-8 stack article">
+    {{range $i, $p := $a.Paragraphs}}<p {{if eq $i 0}}class="drop"{{end}}>{{$p}}</p>{{end}}
+  </article>
+  {{with $a.Now}}<aside class="span-4 panel align-start"><p class="label">Right now</p><p class="now">{{.}}</p></aside>{{end}}
+</section>
+
+{{with $a.Career}}
+<section class="wrap section career">
+  <h2 class="section-title rule-top">Career</h2>
+  {{range .}}
+  <div class="job grid">
+    <span class="span-3 when">{{.When}}</span>
+    <div class="span-6 stack-sm"><span class="role">{{.Title}}</span><span class="what">{{.Body}}</span></div>
+    <span class="span-3 tech">{{.Note}}</span>
+  </div>
+  {{end}}
+</section>
+{{end}}
+
+<section class="wrap section grid">
+  {{with $a.Toolbox}}
+  <div class="span-8">
+    <h2 class="section-title rule-top">Toolbox</h2>
+    <div class="toolbox spaced">
+      {{range .}}<div class="stack-sm"><span class="kicker">{{.Label}}</span><span>{{.Value}}</span></div>{{end}}
+    </div>
+  </div>
+  {{end}}
+  {{with $a.Education}}
+  <div class="span-4 edu">
+    <h2 class="section-title rule-top">Education</h2>
+    {{range .}}<div class="e"><p class="t">{{.Title}}</p><p class="caption">{{with .Body}}{{.}}{{end}}{{if and .Body .When}} · {{end}}{{.When}}</p></div>{{end}}
+  </div>
+  {{end}}
+</section>
+
+<section class="wrap section" id="contact">
+  <div class="cta">
+    <div class="stack-sm">
+      <span class="label">Contact</span>
+      <span class="line">Get in touch</span>
+      {{with $a.Contact}}<span class="sans contact-note">{{.}}</span>{{end}}
+    </div>
+    <div class="actions">
+      {{with .Links.Email}}<a class="button light" href="mailto:{{.}}">{{.}}</a>{{end}}
+      {{with .Links.LinkedIn}}<a class="button outline-light" href="{{.}}" rel="me noopener">LinkedIn</a>{{end}}
+      {{with .Links.GitHub}}<a class="button outline-light" href="{{.}}" rel="me noopener">GitHub</a>{{end}}
+      {{with .Links.CVURL}}<a class="button outline-light" href="{{.}}">Download CV</a>{{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+</main>
+{{template "foot" .}}

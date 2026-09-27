@@ -1,72 +1,80 @@
-// The launch page: introduces a demo while it wakes up, then opens it.
+// The launch page: a short, auto-advancing introduction to a demo while it wakes up, then the
+// demo itself.
 //
-// Without JavaScript the page still works: every slide is visible and "Open" is a plain link.
+// Without JavaScript the page still works: every part is visible, one after another, and "Open"
+// is a plain link.
 (() => {
   const root = document.querySelector('[data-launch]');
   if (!root) return;
   document.documentElement.classList.add('js');
 
   const { slug, demo, name, tour } = root.dataset;
-  const $ = (sel) => root.querySelector(sel);
+  const $ = (sel) => document.querySelector(sel);
   const slides = [...root.querySelectorAll('.slide')];
   const last = slides.length - 1;
+  const band = $('[data-band]');
+  const tag = $('[data-tag]');
   const state = $('[data-state]');
   const detail = $('[data-detail]');
+  const clock = $('[data-clock]');
   const skip = $('[data-skip]');
-  const progress = $('[data-progress]');
-  const dots = $('[data-dots]');
+  const waiting = $('[data-waiting]');
+  const parts = $('[data-parts]');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const SLIDE_MS = 7000;
+  const PART_MS = 6500;
 
   let index = 0;
   let ready = false;
   let introDone = false;
   let autoplay = true;
-  let timer;
+  let started = Date.now();
+  let partStarted = Date.now();
+  let readyAt = 0;
 
-  slides.forEach((_, i) => {
-    const dot = document.createElement('button');
-    dot.type = 'button';
-    dot.className = 'dot';
-    dot.setAttribute('aria-label', i === last ? 'Finish' : `Slide ${i + 1}`);
-    dot.addEventListener('click', () => { takeControl(); show(i); });
-    dots.append(dot);
+  // One button per part, labelled with its kicker, each with a progress bar.
+  parts.style.setProperty('--parts', String(slides.length));
+  const buttons = slides.map((slide, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const track = document.createElement('span');
+    track.className = 'track';
+    const fill = document.createElement('span');
+    fill.className = 'fill';
+    track.append(fill);
+    const label = document.createElement('span');
+    label.className = 'name';
+    label.textContent = slide.dataset.part;
+    b.append(track, label);
+    b.setAttribute('aria-label', slide.dataset.part);
+    b.addEventListener('click', () => { takeControl(); show(i); });
+    parts.append(b);
+    return { b, fill };
   });
 
   function show(i) {
     index = Math.max(0, Math.min(i, last));
     slides.forEach((s, k) => {
       s.classList.toggle('active', k === index);
+      s.classList.toggle('past', k < index);
       s.setAttribute('aria-hidden', String(k !== index));
     });
-    [...dots.children].forEach((d, k) => d.setAttribute('aria-current', String(k === index)));
-    $('[data-prev]').disabled = index === 0;
-    $('[data-next]').disabled = index === last;
-
-    clearTimeout(timer);
-    progress.style.transition = 'none';
-    progress.style.width = '0';
+    buttons.forEach(({ b, fill }, k) => {
+      b.setAttribute('aria-current', String(k === index));
+      b.classList.toggle('done', k < index);
+      fill.style.width = k < index ? '100%' : '0';
+    });
+    partStarted = Date.now();
     if (index === last) {
       introDone = true;
+      skip.hidden = true;
       maybeOpen();
-      return;
-    }
-    if (autoplay) {
-      if (!reducedMotion) {
-        progress.getBoundingClientRect(); // restart the transition
-        progress.style.transition = `width ${SLIDE_MS}ms linear`;
-        progress.style.width = '100%';
-      }
-      timer = setTimeout(() => show(index + 1), SLIDE_MS);
     }
   }
 
-  // Once someone navigates themselves, stop moving the slides under them.
+  // Once someone navigates themselves, stop moving the parts under them.
   function takeControl() {
     autoplay = false;
-    clearTimeout(timer);
-    progress.style.transition = 'none';
-    progress.style.width = '0';
+    buttons[index].fill.style.width = '0';
   }
 
   function open(url) {
@@ -75,19 +83,28 @@
   }
 
   // Open automatically only when both the demo and the visitor are ready, and there is no choice
-  // to make: a demo with a guided tour waits on the last slide for the visitor to pick.
+  // to make: a demo with a guided tour waits on the last part for the visitor to pick.
   function maybeOpen() {
-    if (ready && introDone && !tour) setTimeout(() => open(demo), 800);
+    if (ready && introDone && !tour) setTimeout(() => open(demo), 900);
   }
 
   function markReady() {
     ready = true;
+    readyAt = Date.now();
     root.classList.add('ready');
+    band.hidden = false;
+    tag.textContent = `UPDATE ${elapsed(readyAt)}`;
     state.textContent = `${name} is ready.`;
-    detail.textContent = introDone ? '' : 'Finish the introduction, or skip it.';
+    detail.textContent = introDone ? '' : 'Keep reading, or open it from the bar above.';
+    if (waiting) waiting.hidden = true;
     skip.hidden = introDone;
-    skip.textContent = tour ? 'Skip intro' : `Skip intro and open ${name}`;
+    skip.textContent = tour ? 'Skip intro' : `Skip intro and open`;
     maybeOpen();
+  }
+
+  function elapsed(at) {
+    const s = Math.floor((at - started) / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
 
   skip.addEventListener('click', () => {
@@ -95,16 +112,26 @@
     if (ready && !tour) open(demo);
     else show(last);
   });
-  $('[data-prev]').addEventListener('click', () => { takeControl(); show(index - 1); });
-  $('[data-next]').addEventListener('click', () => { takeControl(); show(index + 1); });
   document.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLElement && e.target.closest('input, textarea')) return;
     if (e.key === 'ArrowRight') { takeControl(); show(index + 1); }
     if (e.key === 'ArrowLeft') { takeControl(); show(index - 1); }
   });
 
-  // Poll until the demo answers. Quickly at first, then more patiently; after a few minutes say
+  // The clock, and the current part's progress bar, advance together.
+  function frame() {
+    const now = Date.now();
+    if (!ready) clock.textContent = elapsed(now);
+    if (autoplay && index < last) {
+      const f = Math.min(1, (now - partStarted) / PART_MS);
+      if (!reducedMotion) buttons[index].fill.style.width = `${(f * 100).toFixed(1)}%`;
+      if (f >= 1) show(index + 1);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // Poll until the demo answers: quickly at first, then more patiently. After three minutes say
   // so, and let the visitor try it anyway.
-  const started = Date.now();
   let warned = false;
   async function poll() {
     try {
@@ -115,7 +142,8 @@
     if (waited > 180_000 && !warned) {
       warned = true;
       root.classList.add('slow');
-      state.textContent = `${name} is taking longer than usual.`;
+      tag.textContent = 'DELAYED';
+      state.textContent = `${name} is taking longer than usual`;
       detail.textContent = 'You can keep waiting, or try opening it anyway.';
       skip.hidden = false;
       skip.textContent = 'Open anyway';
@@ -126,5 +154,6 @@
 
   skip.hidden = false;
   show(0);
+  requestAnimationFrame(frame);
   poll();
 })();

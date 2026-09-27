@@ -75,7 +75,9 @@ jobs:
       - run: docker compose up --build -d --wait lighthouse
       - name: Status page, API and sandbox answer
         run: |
-          curl -fsS http://localhost:8080/status | grep -q "status"
+          curl -fsS http://localhost:8080/ | grep -q "The Lighthouse"
+          curl -fsS http://localhost:8080/projects/redacted | grep -q "Key decisions"
+          curl -fsS http://localhost:8080/status | grep -q "Systems data"
           curl -fsS http://localhost:8080/api/status | grep -q '"overall"'
           curl -fsS -X POST -H "Origin: http://localhost:8080" -c jar http://localhost:8080/api/sandbox
           curl -fsS -b jar http://localhost:8080/api/monitors | grep -q Storefront

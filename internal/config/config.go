@@ -31,8 +31,8 @@ type Config struct {
 	// Only set it when every request passes through that proxy, or the header can be forged.
 	ClientIPHeader string
 
-	// ProjectsFile is the YAML catalog of projects shown on the hub. Empty: no projects.
-	ProjectsFile string
+	// SiteDir holds the portfolio's content: site.yaml, stories/ and media/. Empty: no content.
+	SiteDir string
 
 	OwnerName     string        // shown on the public status page
 	CheckWorkers  int           // concurrent checks
@@ -71,7 +71,7 @@ func Load(getenv func(string) string) (Config, error) {
 		GitHubAPIBase:      strings.TrimRight(get("GITHUB_API_BASE", "https://api.github.com"), "/"),
 		DevLogin:           get("DEV_LOGIN", "false") == "true",
 		ClientIPHeader:     get("CLIENT_IP_HEADER", ""),
-		ProjectsFile:       get("PROJECTS_FILE", ""),
+		SiteDir:            get("SITE_DIR", ""),
 		OwnerName:          get("OWNER_NAME", "Lighthouse"),
 		CheckWorkers:       integer("CHECK_WORKERS", 8, 1, 256),
 		SandboxTTL:         time.Duration(integer("SANDBOX_TTL_MINUTES", 120, 5, 24*60)) * time.Minute,

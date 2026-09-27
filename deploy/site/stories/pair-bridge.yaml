@@ -1,0 +1,93 @@
+read_minutes: 6
+updated: September 2026
+figure_caption: >-
+  The PC appears in every Android file picker. Every connection is opened by the tablet, never to
+  it.
+
+problem:
+  title: The problem
+  paragraphs:
+    - >-
+      Moving a file between a Linux laptop and an Android tablet on the same desk usually means a
+      cloud round trip or a cable. The cloud is slow, sees your files, and needs an account; the
+      cable is never there when you need it.
+    - >-
+      PairBridge makes the laptop's folders feel local on the tablet: they appear in every Android
+      file picker, next to Google Drive, and any app can open, attach or save to them. Files never
+      leave the local network.
+
+solution:
+  title: How it works
+  paragraphs:
+    - >-
+      The laptop runs a small FastAPI server, installed as a background service with one command.
+      The tablet runs a native Android DocumentsProvider, the system interface that storage apps
+      like Google Drive use, so the laptop becomes a storage location in the Files app, Slack,
+      WhatsApp and every other picker. Sharing to "Send to laptop" from any app uploads straight to
+      an inbox folder.
+    - >-
+      Pairing is a QR code carrying the address and a 256-bit token. If the laptop's address
+      changes, the app finds it again over mDNS.
+
+quote: >-
+  The tablet only ever opens connections to the laptop. That one rule shaped every feature.
+
+steps:
+  caption: Why opening a file feels instant, even though the tablet's WiFi radio sleeps.
+  items:
+    - { title: List, body: "Listing a folder returns names, sizes and thumbnails rendered on the laptop." }
+    - { title: Preload, body: "Files under 10 MB download in the background into a cache keyed by path, size and modification time." }
+    - { title: Tap, body: "Opening a file is served from the cache on disk, not the network." }
+    - { title: Refresh, body: "The next listing notices changed files and replaces them." }
+
+decisions:
+  - title: Outbound connections only
+    choice: Every feature is built on requests the tablet makes to the laptop; sending to the laptop is an upload, not a pull.
+    why: >-
+      The target tablet's OS (HyperOS) silently drops inbound connections to ordinary apps over
+      WiFi. A written investigation ruled out permissions, battery limits, IPv6, firewalls and
+      Android's local-network rules before settling on the design.
+    trade_off: Mounting the tablet's files on the laptop stays experimental until a device allows inbound connections.
+  - title: Speak the system's storage interface
+    choice: A DocumentsProvider (Android's Storage Access Framework) instead of a custom file browser.
+    why: Every app's file picker gets the laptop for free, with thumbnails, opening, saving and renaming.
+    trade_off: Apps that edit files in place (read-write mode) can't save to the laptop, because streamed writes aren't seekable.
+  - title: Hide the radio's wake-up cost
+    choice: Preload small files and render thumbnails on the laptop.
+    why: The tablet's WiFi radio sleeps after a few seconds, and the next packet costs one to three seconds, measured by matching server and app logs.
+    trade_off: A file changed on the laptop is only noticed when its folder is listed again.
+  - title: Stream, and write atomically
+    choice: Transfers stream through pipes; uploads land in a temporary file renamed into place when complete.
+    why: Large files never sit in memory, an app never receives a truncated file as if it were whole, and a dropped connection leaves the original untouched.
+    trade_off: None worth noting.
+
+testing:
+  title: How it is tested
+  paragraphs:
+    - >-
+      The laptop's server is tested with pytest: authentication, path traversal and symlink escapes
+      out of shared folders, atomic writes, upload limits, collision-free naming, thumbnails, config
+      file permissions and the CLI. CI runs them and builds the Android app on every push.
+
+limits:
+  title: What it doesn't do yet
+  paragraphs:
+    - >-
+      Traffic is plain HTTP on the local network, so someone on the same WiFi who captures the
+      token can read and change the shared folders. TLS with the certificate pinned through the
+      pairing QR code is the next item on the roadmap, followed by a clipboard drop zone.
+
+numbers:
+  - { value: "256-bit", label: "pairing token, compared in constant time" }
+  - { value: "10 MB", label: files preloaded below this size }
+  - { value: "1–3 s", label: radio wake-up cost it hides }
+  - { value: "0", label: cloud services involved }
+
+fact_file:
+  - { label: What it is, value: "Two-way file access between a Linux PC and an Android tablet" }
+  - { label: Role, value: "Sole engineer: design, build and tests" }
+  - { label: Stack, value: "Python · FastAPI · Kotlin · Android Storage Access Framework" }
+  - { label: Security, value: "Shared-folder allowlist · Keystore-encrypted token" }
+  - { label: Tests, value: "pytest · CI builds the APK" }
+
+call_to_action: Read the code and the HyperOS investigation.
