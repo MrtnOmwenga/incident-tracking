@@ -30,12 +30,12 @@ variable "ssh_public_key" {
   type        = string
   description = "Your SSH public key, for the ubuntu user."
 }
-variable "admin_cidr" {
+variable "admin_email" {
   type        = string
-  description = "The only address allowed to SSH in, e.g. 203.0.113.7/32. Nothing else is open inbound."
+  description = "The only person Cloudflare Access lets through to SSH (a one-time code is sent here)."
   validation {
-    condition     = can(cidrhost(var.admin_cidr, 0)) && var.admin_cidr != "0.0.0.0/0"
-    error_message = "admin_cidr must be a CIDR block, and not the whole internet."
+    condition     = can(regex("^[^@ ]+@[^@ ]+[.][^@ ]+$", var.admin_email))
+    error_message = "admin_email must be an email address."
   }
 }
 variable "k3s_version" {

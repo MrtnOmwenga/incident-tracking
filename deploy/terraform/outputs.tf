@@ -1,6 +1,6 @@
-output "host_public_ip" {
-  description = "For SSH (from admin_cidr only): ssh ubuntu@<ip>"
-  value       = oci_core_instance.host.public_ip
+output "ssh_hostname" {
+  description = "SSH goes through Cloudflare Access; see the ~/.ssh/config entry in the deploy README."
+  value       = local.ssh_hostname
 }
 
 output "tunnel_token" {

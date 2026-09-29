@@ -37,7 +37,8 @@ resource "oci_core_instance" "host" {
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
     user_data = base64encode(templatefile("${path.module}/cloud-init.yaml", {
-      k3s_version = var.k3s_version
+      k3s_version        = var.k3s_version
+      admin_tunnel_token = data.cloudflare_zero_trust_tunnel_cloudflared_token.admin.token
     }))
   }
 
