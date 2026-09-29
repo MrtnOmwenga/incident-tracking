@@ -23,6 +23,7 @@ locals {
       SCHEDULE               = "external"
       TICK_CALLER            = google_service_account.scheduler.email
       DATABASE_URL           = local.lighthouse_db
+      EDGE_SECRET            = random_password.edge.result
     }
     redacted = {
       NODE_ENV              = "production"
@@ -30,17 +31,19 @@ locals {
       DEMO_MODE             = "true"
       RATE_LIMIT_PER_MINUTE = "300"
       LOG_LEVEL             = "info"
+      JWT_SECRET            = random_password.redacted_jwt.result
     }
     ghostchat = {
       NODE_ENV       = "production"
       SECURE_COOKIES = "true"
       CORS_ORIGINS   = "https://ghostchat.${var.domain}"
+      JWT_SECRET     = random_password.ghostchat_jwt.result
     }
   }
   secret_env = {
-    lighthouse = { PGPASSWORD = "lighthouse-db-app", GITHUB_CLIENT_SECRET = "lighthouse-github-secret", EDGE_SECRET = "lighthouse-edge" }
-    redacted   = { PGPASSWORD = "redacted-db-app", JWT_SECRET = "redacted-jwt" }
-    ghostchat  = { MONGODB_URI = "ghostchat-mongodb-uri", JWT_SECRET = "ghostchat-jwt" }
+    lighthouse = { PGPASSWORD = "lighthouse-db-app", GITHUB_CLIENT_SECRET = "lighthouse-github-secret" }
+    redacted   = { PGPASSWORD = "redacted-db-app" }
+    ghostchat  = { MONGODB_URI = "ghostchat-mongodb-uri" }
   }
   shape = {
     lighthouse = { port = 8080, health = "/readyz", memory = "256Mi", timeout = "300s", args = ["serve"] }

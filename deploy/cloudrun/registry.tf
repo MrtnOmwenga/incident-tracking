@@ -11,7 +11,7 @@ resource "google_artifact_registry_repository" "images" {
     id     = "keep-recent"
     action = "KEEP"
     most_recent_versions {
-      keep_count = 3
+      keep_count = 2 # about 290 MB for the three images: inside the 0.5 GB free tier
     }
   }
   cleanup_policies {
