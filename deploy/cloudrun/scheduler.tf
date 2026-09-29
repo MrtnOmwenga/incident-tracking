@@ -9,9 +9,7 @@ resource "google_cloud_scheduler_job" "tick" {
   time_zone        = "Etc/UTC"
   attempt_deadline = "180s"
 
-  retry_config {
-    retry_count = 0 # the next tick is soon enough
-  }
+  # No retries (the default): the next tick is soon enough.
 
   http_target {
     http_method = "POST"
