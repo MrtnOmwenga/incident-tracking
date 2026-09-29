@@ -1,6 +1,7 @@
 // Command lighthouse runs the uptime monitor.
 //
-//	lighthouse serve        run the web server, the scheduler and housekeeping (the default)
+//	lighthouse serve        run the web server, the scheduler and housekeeping (the default; with
+//	                        SCHEDULE=external, POST /internal/tick drives the checks instead)
 //	lighthouse migrate      apply database migrations (needs MIGRATE_DATABASE_URL, the owner role)
 //	lighthouse healthcheck  exit 0 if the local server answers /healthz (for container health checks)
 package main
@@ -14,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -23,6 +25,7 @@ import (
 	"github.com/MrtnOmwenga/lighthouse/internal/auth"
 	"github.com/MrtnOmwenga/lighthouse/internal/config"
 	"github.com/MrtnOmwenga/lighthouse/internal/monitor"
+	"github.com/MrtnOmwenga/lighthouse/internal/oidc"
 	"github.com/MrtnOmwenga/lighthouse/internal/site"
 	"github.com/MrtnOmwenga/lighthouse/internal/store"
 	"github.com/MrtnOmwenga/lighthouse/internal/web"
@@ -84,16 +87,24 @@ func serve(ctx context.Context, log *slog.Logger) error {
 		scheduler.Notify = notifier.Notify
 		log.Info("email alerts on", "to", len(cfg.AlertTo))
 	}
+	keepChecks := time.Duration(cfg.RetentionDays) * 24 * time.Hour
 	done := make(chan struct{}, 2)
-	go func() { scheduler.Run(ctx); done <- struct{}{} }()
-	go func() {
-		monitor.Prune(ctx, pool, log, time.Duration(cfg.RetentionDays)*24*time.Hour, cfg.SandboxTTL)
+	var tick web.Ticker
+	if cfg.ExternalSchedule() {
+		// Something else keeps time (Cloud Scheduler calling /internal/tick): an idle instance may
+		// get no CPU, so a clock of our own would stall.
+		tick = externalTicker(pool, log, scheduler, keepChecks, cfg.SandboxTTL)
 		done <- struct{}{}
-	}()
+		done <- struct{}{}
+		log.Info("checks scheduled externally", "audience", cfg.TickAudience, "caller", cfg.TickCaller)
+	} else {
+		go func() { scheduler.Run(ctx); done <- struct{}{} }()
+		go func() { monitor.Prune(ctx, pool, log, keepChecks, cfg.SandboxTTL); done <- struct{}{} }()
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           handler(cfg, pool, log, owner, content),
+		Handler:           handler(cfg, pool, log, owner, content, tick),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -118,10 +129,34 @@ func serve(ctx context.Context, log *slog.Logger) error {
 	return err
 }
 
-func handler(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger, owner string, content *site.Site) http.Handler {
+func handler(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger, owner string, content *site.Site, tick web.Ticker) http.Handler {
 	srv := web.New(cfg, pool, auth.New(pool, cfg), log, owner)
 	srv.Site = content
+	if tick != nil {
+		srv.Tick = tick
+		srv.TickVerifier = &oidc.Verifier{Audience: cfg.TickAudience, Email: cfg.TickCaller}
+	}
 	return srv.Handler()
+}
+
+// externalTicker runs the checks that are due on each call, and housekeeping at most hourly per
+// instance (pruning twice is harmless; it's only wasted work).
+func externalTicker(pool *pgxpool.Pool, log *slog.Logger, s *monitor.Scheduler, keepChecks, keepSandboxes time.Duration) web.Ticker {
+	var mu sync.Mutex
+	var lastPrune time.Time
+	return func(ctx context.Context) (int, error) {
+		n := s.RunOnce(ctx)
+		mu.Lock()
+		due := time.Since(lastPrune) >= time.Hour
+		if due {
+			lastPrune = time.Now()
+		}
+		mu.Unlock()
+		if due {
+			monitor.PruneOnce(ctx, pool, log, keepChecks, keepSandboxes)
+		}
+		return n, ctx.Err()
+	}
 }
 
 func migrate(ctx context.Context) error {

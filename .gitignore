@@ -12,3 +12,7 @@ coverage.out
 /deploy/terraform/*.tfstate*
 /deploy/terraform/terraform.tfvars
 /deploy/terraform/backend.hcl
+/deploy/cloudrun/.terraform/
+/deploy/cloudrun/*.tfstate*
+/deploy/cloudrun/terraform.tfvars
+/deploy/cloudrun/backend.hcl
