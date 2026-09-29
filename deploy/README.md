@@ -1,7 +1,8 @@
 # Deploying Lighthouse and the demos
 
 Everything runs on one Oracle Cloud Always Free ARM VM (4 OCPUs, 24 GB) with k3s. Visitors arrive
-through a Cloudflare Tunnel, so the VM has no open web ports. Terraform builds the machine and the
+through a Cloudflare Tunnel, and SSH through a second one behind Cloudflare Access, so the VM has
+no open inbound ports at all. Terraform builds the machine and the
 tunnel; Flux keeps the cluster in step with this repository.
 
 ```
@@ -13,7 +14,7 @@ GitHub Actions ──▶ GHCR (multi-arch images, signed) ──▶ Flux (commit
 
 | Folder | What |
 |---|---|
-| `terraform/` | The OCI network and VM (cloud-init installs k3s from a checksum-verified binary), the Cloudflare tunnel, its routes and DNS records |
+| `terraform/` | The OCI network (no inbound rules) and VM (cloud-init installs k3s from a checksum-verified binary, and cloudflared for SSH), the two Cloudflare tunnels, their DNS records, and the Access policy in front of SSH |
 | `k8s/base/` | The workloads. Every pod: non-root, read-only filesystem, no capabilities, seccomp; "restricted" Pod Security enforced per namespace; network policies deny ingress by default |
 | `k8s/production/` | The settings that differ per deployment (`lighthouse.env`, `ghostchat.env`) and the image tags Flux updates |
 | `k8s/flux/` | What Flux applies, and the image automation |
@@ -31,7 +32,9 @@ and runs `terraform validate`.
    Object Storage). Create one bucket by hand, `lighthouse-terraform`, for Terraform's state;
    Terraform creates the backups bucket itself.
 2. **A domain on Cloudflare** (free plan), its zone ID, your account ID, and an API token with
-   *Zone:DNS:Edit* on that zone and *Account:Cloudflare Tunnel:Edit*.
+   *Zone:DNS:Edit* on that zone, *Account:Cloudflare Tunnel:Edit* and *Account:Access: Apps and
+   Policies:Edit*. Open **Zero Trust** in the dashboard once and pick the Free plan and a team
+   name, so Access is enabled on the account.
 3. **A GitHub OAuth app** for the owner sign-in: callback `https://<domain>/auth/github/callback`.
 4. **Optional, for email alerts:** SMTP credentials (for example Brevo's or Resend's free tier).
 
@@ -43,12 +46,24 @@ cd deploy/terraform
 cp terraform.tfvars.example terraform.tfvars   # fill in
 cp backend.hcl.example backend.hcl             # fill in
 export CLOUDFLARE_API_TOKEN=...  AWS_ACCESS_KEY_ID=...  AWS_SECRET_ACCESS_KEY=...   # the last two: the Customer Secret Key
+# OCI's S3 API rejects the chunked uploads newer AWS SDKs send by default (the state lock fails).
+export AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
 terraform init -backend-config=backend.hcl
 terraform apply
 
-# 2. A kubeconfig, over SSH (only your admin_cidr can reach port 22).
-ssh ubuntu@$(terraform output -raw host_public_ip) sudo cat /etc/rancher/k3s/k3s.yaml > ~/.kube/lighthouse.yaml
-# Point its server at localhost through a tunnel: ssh -L 6443:127.0.0.1:6443 ubuntu@<ip>
+# 2. SSH, through the admin tunnel. Install cloudflared locally, then add to ~/.ssh/config:
+#
+#      Host lighthouse
+#        HostName ssh.<domain>
+#        User ubuntu
+#        IdentityFile ~/.ssh/lighthouse
+#        ProxyCommand cloudflared access ssh --hostname %h
+#
+#    The first connection opens a browser for Cloudflare Access (a code sent to admin_email).
+#    cloud-init takes a few minutes after `apply` before SSH answers.
+ssh lighthouse sudo cat /etc/rancher/k3s/k3s.yaml > ~/.kube/lighthouse.yaml && chmod 600 ~/.kube/lighthouse.yaml
+# kubectl reaches the API server through SSH: keep this running in another terminal.
+ssh -N -L 6443:127.0.0.1:6443 lighthouse
 export KUBECONFIG=~/.kube/lighthouse.yaml
 
 # 3. Settings: your domain in deploy/k8s/production/lighthouse.env (PUBLIC_URL, GITHUB_CLIENT_ID,

@@ -1,5 +1,5 @@
-# A single public subnet. Its only inbound rule is SSH from admin_cidr: web traffic arrives through
-# the Cloudflare Tunnel, which the VM dials out to, so ports 80 and 443 stay closed.
+# A single public subnet with no inbound rules (bar path-MTU ICMP): web traffic and SSH both arrive
+# through Cloudflare Tunnels, which the VM dials out to. The public IP is only for going out.
 
 resource "oci_core_vcn" "main" {
   compartment_id = var.compartment_ocid
@@ -32,14 +32,6 @@ resource "oci_core_security_list" "public" {
   egress_security_rules {
     destination = "0.0.0.0/0"
     protocol    = "all"
-  }
-  ingress_security_rules {
-    source   = var.admin_cidr
-    protocol = "6" # TCP
-    tcp_options {
-      min = 22
-      max = 22
-    }
   }
   # Path MTU discovery.
   ingress_security_rules {
