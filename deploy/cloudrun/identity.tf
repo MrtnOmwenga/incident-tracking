@@ -3,8 +3,8 @@
 # - Each service runs as its own service account, which can read only its own secrets.
 # - Cloud Scheduler calls Lighthouse's /internal/tick as a service account that has no roles at
 #   all: Lighthouse checks the identity token Google issues for it.
-# - GitHub Actions deploys through Workload Identity Federation: no key is ever stored. Only the
-#   main branch of the three repositories can get a token, and only for the deployer.
+# - GitHub Actions deploys through Workload Identity Federation: no key is ever stored. Only each
+#   repository's release branch can get a token, and only for the deployer.
 
 locals {
   services = toset(["lighthouse", "redacted", "ghostchat"])
@@ -38,14 +38,15 @@ resource "google_iam_workload_identity_pool" "github" {
 resource "google_iam_workload_identity_pool_provider" "github" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = "github-actions"
-  display_name                       = "GitHub Actions (main branch)"
+  display_name                       = "GitHub Actions (release branches)"
   attribute_mapping = {
     "google.subject"       = "assertion.sub"
     "attribute.repository" = "assertion.repository"
     "attribute.ref"        = "assertion.ref"
   }
-  # Only this owner's repositories, only from main. Checked by Google before any token is issued.
-  attribute_condition = "assertion.repository_owner == '${var.github_owner}' && assertion.ref == 'refs/heads/main'"
+  # Only the named repositories, each from its own release branch. Checked by Google before any
+  # token is issued.
+  attribute_condition = join(" || ", [for r in values(var.github_repos) : "(assertion.repository == '${var.github_owner}/${r.repo}' && assertion.ref == 'refs/heads/${r.branch}')"])
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
@@ -55,7 +56,7 @@ resource "google_service_account_iam_member" "deployer_from_github" {
   for_each           = var.github_repos
   service_account_id = google_service_account.deployer.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_owner}/${each.value}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_owner}/${each.value.repo}"
 }
 
 # The deployer updates the services and runs the migration jobs (run.developer), and deploys them

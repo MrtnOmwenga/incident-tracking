@@ -33,12 +33,12 @@ variable "github_owner" {
 }
 
 variable "github_repos" {
-  type        = map(string)
-  description = "Which GitHub repository deploys which service."
+  type        = map(object({ repo = string, branch = string }))
+  description = "Which GitHub repository (and which of its branches) deploys which service."
   default = {
-    lighthouse = "lighthouse"
-    redacted   = "RBAC-API"
-    ghostchat  = "GhostChat"
+    lighthouse = { repo = "lighthouse", branch = "main" }
+    redacted   = { repo = "RBAC-API", branch = "master" }
+    ghostchat  = { repo = "GhostChat", branch = "master" }
   }
 }
 
