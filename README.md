@@ -146,7 +146,9 @@ to use your own. `POST /auth/dev` signs you in as the owner locally;
 
 The image is a static binary on a distroless base, running as a non-root user with a read-only
 filesystem. `lighthouse migrate` applies migrations as the database owner and creates the app's
-least-privileged role; `lighthouse serve` runs the server, scheduler and housekeeping.
+least-privileged role; `lighthouse serve` runs the server, scheduler and housekeeping (with
+`SCHEDULE=external`, calls to `POST /internal/tick` drive the checks instead, for platforms that
+freeze idle instances).
 
 ## Design
 
@@ -155,6 +157,7 @@ cmd/lighthouse       serve | migrate | healthcheck
 internal/config      settings from the environment, validated together
 internal/store       PostgreSQL: migrations, row-level security, queries
 internal/monitor     probes (HTTP, simulated), the incident state machine, the scheduler
+internal/oidc        verifies Google-signed identity tokens (the scheduler's tick)
 internal/status      status page data and the SVG sparkline
 internal/site        the portfolio content (profile, projects, stories) and demo readiness
 internal/auth        sessions, GitHub OAuth, sandboxes
@@ -178,22 +181,31 @@ Choices worth explaining:
 
 ## Deploying it
 
-[`deploy/`](deploy/README.md) holds everything needed to run it for real, for free: Terraform for
-one Oracle Cloud Always Free ARM VM running k3s, and Kubernetes manifests kept in step by Flux,
-with every pod locked down (non-root, read-only, no capabilities, restricted Pod Security,
-default-deny network policies). Every push to `main` publishes signed multi-architecture images;
-Flux rolls them out and records each deploy as a commit. Email alerts go out when a monitor opens
-or resolves an incident.
+**Live at [martinomwenga.com](https://martinomwenga.com)**, for free: Lighthouse and both demos run
+on Google Cloud Run behind a Cloudflare edge ([`deploy/`](deploy/README.md)).
 
-**The server has no open inbound ports.** Visitors reach the sites through a Cloudflare Tunnel that
-cloudflared, inside the cluster, dials out to. SSH goes through a second tunnel whose cloudflared
-runs on the host itself (SSH is how the cluster gets set up, so it can't depend on the cluster),
-with Cloudflare Access in front: only the owner's email gets through, and the SSH key is still
-required after that.
+- **Scale to zero.** Each app sleeps when idle and wakes on the first request; the launch page's
+  "starting Redacted…" introduction covers that wake-up. An idle Cloud Run instance gets no CPU, so
+  Lighthouse can't keep its own clock there: Cloud Scheduler calls `POST /internal/tick` every 15
+  minutes with a Google-signed identity token, which Lighthouse verifies with the standard library.
+- **Nothing bypasses the edge.** A Cloudflare Worker routes each hostname to its service, passes on
+  the visitor's IP and adds a secret header; Lighthouse refuses requests without it, so its public
+  origin can't be used to skip Cloudflare or forge an IP.
+- **No stored cloud credentials.** Each repository's release workflow builds and signs the image,
+  then deploys through Workload Identity Federation (GitHub's OIDC token for a short-lived Google
+  one, accepted only from that repository's release branch): copy to Artifact Registry, run the
+  migrations as a job, deploy by digest, smoke-test through the edge.
+- **Free by design.** Every setting follows from a free-tier limit: a Neon project per app, 15-minute
+  ticks so the databases can sleep, exactly six secrets, two image versions kept, static files
+  cached at the edge. All of it is Terraform ([`deploy/cloudrun`](deploy/cloudrun)).
 
-**Status (29 September 2026):** the infrastructure is provisioned for `martinomwenga.com`: the
-network, both tunnels, DNS, the Access policy and the backups bucket. The VM is waiting for Oracle
-to have free Arm capacity in the region (a well-known limit of the Always Free tier), and is retried
-automatically. The manifests have already run end to end on a local kind cluster. Running the
-first `terraform apply` against real accounts found three problems that validation couldn't; they
-are in [the deploy runbook](deploy/README.md#what-the-first-real-apply-found).
+**It also runs on Kubernetes.** [`deploy/terraform`](deploy/terraform) and
+[`deploy/k8s`](deploy/k8s) put the same images on one k3s host with no open inbound ports
+(Cloudflare Tunnels, SSH behind Cloudflare Access), kept in step by Flux, with every pod locked
+down (non-root, read-only, no capabilities, restricted Pod Security, default-deny network
+policies). It's proven on a local kind cluster and validated in CI. It isn't the live deployment
+because the free Oracle host never became available; [the runbook](deploy/README.md#why-cloud-run-and-not-the-k3s-host)
+explains why, and lists what deploying for real found that validation couldn't.
+
+Lighthouse can also email the owner when a monitor opens or resolves an incident (SMTP settings;
+not switched on in the live deployment yet).
