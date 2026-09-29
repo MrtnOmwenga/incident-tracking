@@ -79,3 +79,40 @@ func TestAlertSettings(t *testing.T) {
 		t.Fatalf("%+v %v", c, err)
 	}
 }
+
+func TestSchedule(t *testing.T) {
+	base := map[string]string{"DATABASE_URL": "postgres://x", "PUBLIC_URL": "https://example.com"}
+	c, err := Load(env(base))
+	if err != nil || c.ExternalSchedule() {
+		t.Fatalf("default should be the built-in loop: %+v %v", c, err)
+	}
+
+	ext := map[string]string{"SCHEDULE": "external"}
+	for k, v := range base {
+		ext[k] = v
+	}
+	if _, err := Load(env(ext)); err == nil || !strings.Contains(err.Error(), "TICK_CALLER") {
+		t.Fatalf("external schedule without a caller: %v", err)
+	}
+	ext["TICK_CALLER"] = "scheduler@proj.iam.gserviceaccount.com"
+	c, err = Load(env(ext))
+	if err != nil || !c.ExternalSchedule() || c.TickAudience != "https://example.com/internal/tick" {
+		t.Fatalf("%+v %v", c, err)
+	}
+
+	bad := map[string]string{"DATABASE_URL": "postgres://x", "SCHEDULE": "cron"}
+	if _, err := Load(env(bad)); err == nil {
+		t.Fatal("accepted an unknown schedule")
+	}
+}
+
+func TestPortFromCloudRun(t *testing.T) {
+	c, err := Load(env(map[string]string{"DATABASE_URL": "postgres://x", "PORT": "9090"}))
+	if err != nil || c.Addr != ":9090" {
+		t.Fatalf("%+v %v", c.Addr, err)
+	}
+	c, _ = Load(env(map[string]string{"DATABASE_URL": "postgres://x", "PORT": "9090", "ADDR": "127.0.0.1:7000"}))
+	if c.Addr != "127.0.0.1:7000" {
+		t.Fatalf("ADDR should win over PORT: %s", c.Addr)
+	}
+}

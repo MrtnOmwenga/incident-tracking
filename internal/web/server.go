@@ -26,6 +26,7 @@ import (
 	"github.com/MrtnOmwenga/lighthouse/internal/auth"
 	"github.com/MrtnOmwenga/lighthouse/internal/config"
 	"github.com/MrtnOmwenga/lighthouse/internal/monitor"
+	"github.com/MrtnOmwenga/lighthouse/internal/oidc"
 	"github.com/MrtnOmwenga/lighthouse/internal/site"
 	"github.com/MrtnOmwenga/lighthouse/internal/store"
 )
@@ -46,6 +47,10 @@ type Server struct {
 	Site        *site.Site      // the portfolio's content
 	Readiness   *site.Readiness // wakes demos and reports when they're up
 	Analytics   *analytics.Recorder
+
+	// Tick and TickVerifier serve POST /internal/tick when checks are scheduled from outside.
+	Tick         Ticker
+	TickVerifier *oidc.Verifier
 
 	pages     *template.Template
 	sandboxes *limiter // new sandboxes per client
@@ -71,6 +76,7 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
 	mux.HandleFunc("GET /readyz", s.ready)
+	mux.HandleFunc("POST /internal/tick", s.tick)
 	// Public: the portfolio.
 	mux.HandleFunc("GET /{$}", s.frontPage)
 	mux.HandleFunc("GET /projects", s.projectsPage)

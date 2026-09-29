@@ -48,7 +48,20 @@ type Config struct {
 	SandboxTTL    time.Duration // how long a visitor's sandbox lives
 	SandboxLimit  int           // new sandboxes per client per hour
 	RetentionDays int           // how long check results are kept
+
+	// Schedule is how checks get run. "loop" (the default): Lighthouse runs its own clock, which
+	// needs a process that's always running. "external": something else calls POST /internal/tick
+	// (Cloud Scheduler, on Cloud Run, where an idle instance gets no CPU); each call runs the checks
+	// that are due.
+	Schedule string
+	// TickAudience and TickCaller: the identity token /internal/tick requires in external mode,
+	// issued by Google for this audience to this service account, and to no one else.
+	TickAudience string
+	TickCaller   string
 }
+
+// ExternalSchedule reports whether checks are driven by calls to /internal/tick.
+func (c Config) ExternalSchedule() bool { return c.Schedule == "external" }
 
 func (c Config) Production() bool { return c.Env == "production" }
 
@@ -72,7 +85,7 @@ func Load(getenv func(string) string) (Config, error) {
 
 	c := Config{
 		Env:                get("LIGHTHOUSE_ENV", "development"),
-		Addr:               get("ADDR", ":8080"),
+		Addr:               get("ADDR", ":"+get("PORT", "8080")), // PORT: what Cloud Run sets
 		PublicURL:          strings.TrimRight(get("PUBLIC_URL", "http://localhost:8080"), "/"),
 		DatabaseURL:        get("DATABASE_URL", ""),
 		GitHubClientID:     get("GITHUB_CLIENT_ID", ""),
@@ -92,7 +105,10 @@ func Load(getenv func(string) string) (Config, error) {
 		SandboxTTL:         time.Duration(integer("SANDBOX_TTL_MINUTES", 120, 5, 24*60)) * time.Minute,
 		SandboxLimit:       integer("SANDBOX_LIMIT_PER_HOUR", 6, 1, 100000),
 		RetentionDays:      integer("RETENTION_DAYS", 90, 1, 3650),
+		Schedule:           get("SCHEDULE", "loop"),
+		TickCaller:         get("TICK_CALLER", ""),
 	}
+	c.TickAudience = get("TICK_AUDIENCE", c.PublicURL+"/internal/tick")
 	if owner := get("OWNER_GITHUB_ID", "0"); owner != "0" {
 		id, err := strconv.ParseInt(owner, 10, 64)
 		if err != nil || id <= 0 {
@@ -116,6 +132,16 @@ func Load(getenv func(string) string) (Config, error) {
 		if _, err := mail.ParseAddress(c.AlertFrom); err != nil {
 			problems = append(problems, "ALERT_TO needs ALERT_FROM, the address alerts come from")
 		}
+	}
+
+	switch c.Schedule {
+	case "loop":
+	case "external":
+		if !strings.HasSuffix(c.TickCaller, ".gserviceaccount.com") {
+			problems = append(problems, "SCHEDULE=external needs TICK_CALLER, the service account allowed to call /internal/tick")
+		}
+	default:
+		problems = append(problems, "SCHEDULE must be loop or external")
 	}
 
 	switch c.Env {
