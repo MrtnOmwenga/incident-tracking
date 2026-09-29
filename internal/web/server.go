@@ -4,6 +4,7 @@ package web
 
 import (
 	"context"
+	"crypto/subtle"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -141,7 +142,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PATCH /api/incidents/{id}", s.signedIn(s.updateIncident))
 	mux.HandleFunc("POST /api/incidents/{id}/comments", s.signedIn(s.addComment))
 
-	return s.recoverer(s.logRequests(securityHeaders(s.Config, s.sameOrigin(s.limitWrites(s.Auth.Middleware(mux))))))
+	return s.recoverer(s.logRequests(s.edgeOnly(securityHeaders(s.Config, s.sameOrigin(s.limitWrites(s.Auth.Middleware(mux)))))))
 }
 
 func (s *Server) ready(w http.ResponseWriter, r *http.Request) {
@@ -341,6 +342,28 @@ func (s *Server) limitWrites(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead && !s.writes.allow(s.clientIP(r)) {
 			s.errs(func(http.ResponseWriter, *http.Request) error { return errTooMany })(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// edgeOnly refuses requests that didn't come through the edge proxy, when one is configured (see
+// config.EdgeSecret). Health checks (the platform probes the container directly) and the tick (it
+// carries its own proof of identity) are exempt.
+func (s *Server) edgeOnly(next http.Handler) http.Handler {
+	secret := []byte(s.Config.EdgeSecret)
+	if len(secret) == 0 {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/healthz", "/readyz", "/internal/tick":
+			next.ServeHTTP(w, r)
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Edge-Secret")), secret) != 1 {
+			http.NotFound(w, r)
 			return
 		}
 		next.ServeHTTP(w, r)

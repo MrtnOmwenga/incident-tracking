@@ -31,6 +31,11 @@ type Config struct {
 	// CF-Connecting-IP behind Cloudflare), for rate limiting. Empty: use the connection's address.
 	// Only set it when every request passes through that proxy, or the header can be forged.
 	ClientIPHeader string
+	// EdgeSecret, when set, is a value only the edge proxy (a Cloudflare Worker) sends, in the
+	// X-Edge-Secret header. Requests without it are refused, apart from health checks and the
+	// scheduler's tick: the origin (a public *.run.app URL) can't be used to bypass the edge, and
+	// ClientIPHeader can't be forged by calling it directly.
+	EdgeSecret string
 
 	// Email alerts when the owner's monitors open or resolve an incident. Off unless AlertTo is set.
 	SMTPHost     string
@@ -94,6 +99,7 @@ func Load(getenv func(string) string) (Config, error) {
 		GitHubAPIBase:      strings.TrimRight(get("GITHUB_API_BASE", "https://api.github.com"), "/"),
 		DevLogin:           get("DEV_LOGIN", "false") == "true",
 		ClientIPHeader:     get("CLIENT_IP_HEADER", ""),
+		EdgeSecret:         get("EDGE_SECRET", ""),
 		SiteDir:            get("SITE_DIR", ""),
 		SMTPHost:           get("SMTP_HOST", ""),
 		SMTPPort:           integer("SMTP_PORT", 587, 1, 65535),
@@ -132,6 +138,10 @@ func Load(getenv func(string) string) (Config, error) {
 		if _, err := mail.ParseAddress(c.AlertFrom); err != nil {
 			problems = append(problems, "ALERT_TO needs ALERT_FROM, the address alerts come from")
 		}
+	}
+
+	if c.EdgeSecret != "" && len(c.EdgeSecret) < 32 {
+		problems = append(problems, "EDGE_SECRET must be at least 32 characters")
 	}
 
 	switch c.Schedule {

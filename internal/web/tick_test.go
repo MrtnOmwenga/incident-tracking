@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -88,5 +89,45 @@ func TestTickRunsOnlyForTheScheduler(t *testing.T) {
 	s.Tick, s.TickVerifier = nil, nil
 	if w := call("Bearer " + token(caller)); w.Code != http.StatusNotFound {
 		t.Fatalf("loop mode: got %d, want 404", w.Code)
+	}
+}
+
+func TestEdgeOnly(t *testing.T) {
+	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) })
+	s := &Server{}
+	s.Config.EdgeSecret = strings.Repeat("s", 40)
+	h := s.edgeOnly(ok)
+	call := func(path, secret string) int {
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		if secret != "" {
+			r.Header.Set("X-Edge-Secret", secret)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w.Code
+	}
+	if got := call("/", ""); got != http.StatusNotFound {
+		t.Errorf("direct request: %d, want 404", got)
+	}
+	if got := call("/", "wrong"); got != http.StatusNotFound {
+		t.Errorf("wrong secret: %d, want 404", got)
+	}
+	if got := call("/", strings.Repeat("s", 40)); got != http.StatusTeapot {
+		t.Errorf("through the edge: %d", got)
+	}
+	for _, p := range []string{"/healthz", "/readyz", "/internal/tick"} {
+		if got := call(p, ""); got != http.StatusTeapot {
+			t.Errorf("%s should be exempt: %d", p, got)
+		}
+	}
+	// No secret configured: everything passes, as before.
+	if got := (&Server{}).edgeOnly(ok); got == nil {
+		t.Fatal("nil handler")
+	}
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	(&Server{}).edgeOnly(ok).ServeHTTP(w, r)
+	if w.Code != http.StatusTeapot {
+		t.Errorf("no edge configured: %d", w.Code)
 	}
 }
