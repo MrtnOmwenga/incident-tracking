@@ -241,24 +241,29 @@ func Prune(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger, keepChecks
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
-		if n, err := store.Prune(ctx, pool, keepChecks, keepSandboxes); err != nil {
-			if ctx.Err() == nil {
-				log.Error("pruning", "err", err)
-			}
-		} else if n.Checks+n.Sandboxes+n.Sessions > 0 {
-			log.Info("pruned", "checks", n.Checks, "sandboxes", n.Sandboxes, "sessions", n.Sessions)
-		}
-		if views, err := store.PruneAnalytics(ctx, pool, keepChecks); err != nil {
-			if ctx.Err() == nil {
-				log.Error("pruning visits", "err", err)
-			}
-		} else if views > 0 {
-			log.Info("pruned", "page_views", views)
-		}
+		PruneOnce(ctx, pool, log, keepChecks, keepSandboxes)
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 		}
+	}
+}
+
+// PruneOnce is one round of Prune, for schedules driven from outside (see config.Schedule).
+func PruneOnce(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger, keepChecks, keepSandboxes time.Duration) {
+	if n, err := store.Prune(ctx, pool, keepChecks, keepSandboxes); err != nil {
+		if ctx.Err() == nil {
+			log.Error("pruning", "err", err)
+		}
+	} else if n.Checks+n.Sandboxes+n.Sessions > 0 {
+		log.Info("pruned", "checks", n.Checks, "sandboxes", n.Sandboxes, "sessions", n.Sessions)
+	}
+	if views, err := store.PruneAnalytics(ctx, pool, keepChecks); err != nil {
+		if ctx.Err() == nil {
+			log.Error("pruning visits", "err", err)
+		}
+	} else if views > 0 {
+		log.Info("pruned", "page_views", views)
 	}
 }

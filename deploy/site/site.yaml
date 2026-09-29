@@ -134,7 +134,7 @@ projects:
     docs: https://github.com/MrtnOmwenga/RBAC-API/blob/master/docs/COLLABORATION.md
     demo: https://redacted.${DOMAIN}
     tour: https://redacted.${DOMAIN}/?tour=play
-    health: http://redacted.demos.svc.cluster.local:3000/health/ready
+    health: https://redacted.${DOMAIN}/health/ready
     monitor: redacted
     intro:
       - kicker: Architecture
@@ -196,7 +196,7 @@ projects:
     repo: https://github.com/MrtnOmwenga/GhostChat
     docs: https://github.com/MrtnOmwenga/GhostChat/blob/master/docs/DESIGN.md
     demo: https://ghostchat.${DOMAIN}
-    health: http://ghostchat.demos.svc.cluster.local:5000/health
+    health: https://ghostchat.${DOMAIN}/health
     monitor: ghostchat
     intro:
       - kicker: The threat model

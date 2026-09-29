@@ -50,12 +50,16 @@ jobs:
       - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v4
         with: { terraform_version: 1.16.4 }
-      - name: Terraform format and validate
-        working-directory: deploy/terraform
+      - name: Terraform format and validate (both stacks)
         run: |
-          terraform fmt -check -recursive
-          terraform init -backend=false -input=false
-          terraform validate
+          for stack in deploy/terraform deploy/cloudrun; do
+            echo "== $stack"
+            terraform -chdir="$stack" fmt -check -recursive
+            terraform -chdir="$stack" init -backend=false -input=false
+            terraform -chdir="$stack" validate
+          done
+      - name: Edge Worker parses
+        run: cp deploy/cloudrun/edge/worker.js "$RUNNER_TEMP/worker.mjs" && node --check "$RUNNER_TEMP/worker.mjs"
       - name: Kubernetes manifests render and validate
         run: |
           curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform
