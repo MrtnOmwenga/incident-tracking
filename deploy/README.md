@@ -14,7 +14,7 @@ GitHub Actions ──▶ GHCR (multi-arch images, signed) ──▶ Flux (commit
 
 | Folder | What |
 |---|---|
-| `terraform/` | The OCI network (no inbound rules) and VM (cloud-init installs k3s from a checksum-verified binary, and cloudflared for SSH), the two Cloudflare tunnels, their DNS records, and the Access policy in front of SSH |
+| `terraform/` | The OCI network (no inbound rules) and VM (cloud-init installs k3s from a checksum-verified binary, and cloudflared for SSH), the two Cloudflare tunnels, their DNS records, the Access policy in front of SSH, and the backups bucket with its 30-day expiry (and the IAM policy that expiry needs) |
 | `k8s/base/` | The workloads. Every pod: non-root, read-only filesystem, no capabilities, seccomp; "restricted" Pod Security enforced per namespace; network policies deny ingress by default |
 | `k8s/production/` | The settings that differ per deployment (`lighthouse.env`, `ghostchat.env`) and the image tags Flux updates |
 | `k8s/flux/` | What Flux applies, and the image automation |
@@ -24,6 +24,18 @@ GitHub Actions ──▶ GHCR (multi-arch images, signed) ──▶ Flux (commit
 CI renders the manifests and validates them (kubeconform), checks every container is locked down,
 and runs `terraform validate`.
 
+## Status
+
+| | |
+|---|---|
+| Domain | `martinomwenga.com`, on Cloudflare |
+| Region | Oracle `eu-stockholm-1` |
+| Network, tunnels, DNS, Access, backups bucket | Created (29 September 2026) |
+| VM | Waiting for Arm capacity ("Out of host capacity"); retried every 10 minutes |
+| Cluster, secrets, Flux | Next, once the VM is up: steps 2 to 7 below |
+| Manifests | Proven end to end on a local kind cluster: every pod ran under restricted Pod Security, and the network policies blocked what they should |
+| Email alerts | Off for now (`ALERT_TO` empty) |
+
 ## What you need first
 
 1. **Oracle Cloud:** an account, upgraded to *Pay As You Go* so the Always Free VM isn't reclaimed
@@ -31,6 +43,9 @@ and runs `terraform validate`.
    (Identity > Users > API keys) and a Customer Secret Key (for Terraform state and backups in
    Object Storage). Create one bucket by hand, `lighthouse-terraform`, for Terraform's state;
    Terraform creates the backups bucket itself.
+
+   Without the Pay As You Go upgrade, everything still works, but Always Free Arm capacity is
+   scarce and the VM may fail to create with "Out of host capacity" (see below).
 2. **A domain on Cloudflare** (free plan), its zone ID, your account ID, and an API token with
    *Zone:DNS:Edit* on that zone, *Account:Cloudflare Tunnel:Edit* and *Account:Access: Apps and
    Policies:Edit*. Open **Zero Trust** in the dashboard once and pick the Free plan and a team
@@ -90,6 +105,35 @@ flux bootstrap github --owner=MrtnOmwenga --repository=lighthouse --branch=main 
    demo's in-cluster health address (`http://redacted.demos.svc.cluster.local:3000/health/ready`,
    `http://ghostchat.demos.svc.cluster.local:5000/health`), with *Allow private network* on, and for
    the public addresses too. Give each the slug its project uses in `site/site.yaml`.
+
+## What the first real apply found
+
+`terraform validate` and the local kind cluster can't catch what only a real cloud account
+rejects. The first `apply` found three things:
+
+- **The state lock failed:** `NotImplemented: AWS chunked encoding not supported`. Newer AWS SDKs
+  (which Terraform's S3 backend uses) stream uploads with chunked checksums; OCI's S3-compatible
+  API doesn't accept them. Fix: `AWS_REQUEST_CHECKSUM_CALCULATION=when_required` and
+  `AWS_RESPONSE_CHECKSUM_VALIDATION=when_required` (step 1). `skip_s3_checksum` in the backend
+  config isn't enough on its own for the lock file.
+- **The backups' expiry rule was refused:** `InsufficientServicePermissions`. Object Storage deletes
+  expired objects as a service principal, which needs an IAM policy even inside your own tenancy.
+  `storage.tf` now creates one, scoped to the backups bucket.
+- **The VM: `Out of host capacity`.** Free Arm capacity comes and goes, and free-tier accounts are
+  served last. Nothing is wrong with the configuration: everything else is created, and the VM can
+  be retried on its own until it succeeds. Each retry plans the VM alone and applies only if that
+  plan is exactly one resource to add:
+
+  ```sh
+  terraform plan -target=oci_core_instance.host -out=vm.tfplan   # expect: 1 to add, 0 to change, 0 to destroy
+  terraform apply vm.tfplan
+  ```
+
+  Upgrading the account to Pay As You Go (still free for this usage) makes capacity much easier
+  to get.
+
+Also worth knowing: Cloudflare's provider can't delete a tunnel's configuration, so `terraform
+destroy` leaves it behind (it warns about this); delete it in the dashboard if you ever tear down.
 
 ## Operating it
 

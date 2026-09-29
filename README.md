@@ -179,8 +179,21 @@ Choices worth explaining:
 ## Deploying it
 
 [`deploy/`](deploy/README.md) holds everything needed to run it for real, for free: Terraform for
-one Oracle Cloud Always Free ARM VM running k3s and a Cloudflare Tunnel (no open web ports), and
-Kubernetes manifests kept in step by Flux, with every pod locked down (non-root, read-only,
-no capabilities, restricted Pod Security, default-deny network policies). Every push to `main`
-publishes signed multi-architecture images; Flux rolls them out and records each deploy as a
-commit. Email alerts go out when a monitor opens or resolves an incident.
+one Oracle Cloud Always Free ARM VM running k3s, and Kubernetes manifests kept in step by Flux,
+with every pod locked down (non-root, read-only, no capabilities, restricted Pod Security,
+default-deny network policies). Every push to `main` publishes signed multi-architecture images;
+Flux rolls them out and records each deploy as a commit. Email alerts go out when a monitor opens
+or resolves an incident.
+
+**The server has no open inbound ports.** Visitors reach the sites through a Cloudflare Tunnel that
+cloudflared, inside the cluster, dials out to. SSH goes through a second tunnel whose cloudflared
+runs on the host itself (SSH is how the cluster gets set up, so it can't depend on the cluster),
+with Cloudflare Access in front: only the owner's email gets through, and the SSH key is still
+required after that.
+
+**Status (29 September 2026):** the infrastructure is provisioned for `martinomwenga.com`: the
+network, both tunnels, DNS, the Access policy and the backups bucket. The VM is waiting for Oracle
+to have free Arm capacity in the region (a well-known limit of the Always Free tier), and is retried
+automatically. The manifests have already run end to end on a local kind cluster. Running the
+first `terraform apply` against real accounts found three problems that validation couldn't; they
+are in [the deploy runbook](deploy/README.md#what-the-first-real-apply-found).
