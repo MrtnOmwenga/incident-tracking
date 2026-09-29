@@ -1,0 +1,199 @@
+# The three apps on Cloud Run. Each scales to zero when idle and runs at most one instance: the
+# demos keep real-time state in memory, and one instance keeps everything inside the free tier.
+# Terraform creates each service with a placeholder image; from then on, each repository's release
+# workflow deploys its own image, so the image is ignored here.
+
+locals {
+  placeholder = "us-docker.pkg.dev/cloudrun/container/hello"
+  public_url  = "https://${var.domain}"
+
+  lighthouse_db = "postgres://lighthouse_api@${local.lighthouse_host}/lighthouse?sslmode=require"
+  redacted_db   = "postgres://rbac_app_login@${local.redacted_host}/rbac?sslmode=require"
+
+  env = {
+    lighthouse = {
+      LIGHTHOUSE_ENV         = "production"
+      PUBLIC_URL             = local.public_url
+      OWNER_NAME             = "Martin Omwenga"
+      CLIENT_IP_HEADER       = "X-Client-IP" # set by the edge Worker; trusted because of EDGE_SECRET
+      CHECK_WORKERS          = "8"
+      SANDBOX_LIMIT_PER_HOUR = "6"
+      GITHUB_CLIENT_ID       = var.github_client_id
+      OWNER_GITHUB_ID        = tostring(var.owner_github_id)
+      SCHEDULE               = "external"
+      TICK_CALLER            = google_service_account.scheduler.email
+      DATABASE_URL           = local.lighthouse_db
+    }
+    redacted = {
+      NODE_ENV              = "production"
+      DATABASE_URL          = local.redacted_db
+      DEMO_MODE             = "true"
+      RATE_LIMIT_PER_MINUTE = "300"
+      LOG_LEVEL             = "info"
+    }
+    ghostchat = {
+      NODE_ENV       = "production"
+      SECURE_COOKIES = "true"
+      CORS_ORIGINS   = "https://ghostchat.${var.domain}"
+    }
+  }
+  secret_env = {
+    lighthouse = { PGPASSWORD = "lighthouse-db-app", GITHUB_CLIENT_SECRET = "lighthouse-github-secret", EDGE_SECRET = "lighthouse-edge" }
+    redacted   = { PGPASSWORD = "redacted-db-app", JWT_SECRET = "redacted-jwt" }
+    ghostchat  = { MONGODB_URI = "ghostchat-mongodb-uri", JWT_SECRET = "ghostchat-jwt" }
+  }
+  shape = {
+    lighthouse = { port = 8080, health = "/readyz", memory = "256Mi", timeout = "300s", args = ["serve"] }
+    redacted   = { port = 3000, health = "/health/ready", memory = "512Mi", timeout = "3600s", args = ["dist/main.js"] }
+    ghostchat  = { port = 5000, health = "/health", memory = "512Mi", timeout = "3600s", args = [] }
+  }
+}
+
+resource "google_cloud_run_v2_service" "app" {
+  for_each            = local.services
+  name                = each.key
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = false
+
+  template {
+    service_account                  = google_service_account.run[each.key].email
+    timeout                          = local.shape[each.key].timeout # WebSockets stay open this long, then reconnect
+    session_affinity                 = true
+    max_instance_request_concurrency = 250
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
+
+    containers {
+      image = local.placeholder
+      args  = local.shape[each.key].args
+      ports {
+        container_port = local.shape[each.key].port
+      }
+      resources {
+        limits   = { cpu = "1", memory = local.shape[each.key].memory }
+        cpu_idle = true # billed only while handling requests
+      }
+      dynamic "env" {
+        for_each = local.env[each.key]
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        for_each = local.secret_env[each.key]
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.s[env.value].secret_id
+              version = "latest"
+            }
+          }
+        }
+      }
+      startup_probe {
+        http_get {
+          path = local.shape[each.key].health
+        }
+        initial_delay_seconds = 0
+        period_seconds        = 3
+        timeout_seconds       = 3
+        failure_threshold     = 20
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image, # the release workflow deploys images
+      client,
+      client_version,
+    ]
+  }
+  depends_on = [google_secret_manager_secret_iam_member.reader, google_secret_manager_secret_version.s]
+}
+
+# Everyone may call the services; Lighthouse itself refuses anything that didn't come through the
+# edge (EDGE_SECRET), and the demos are public by design.
+resource "google_cloud_run_v2_service_iam_member" "public" {
+  for_each = local.services
+  name     = google_cloud_run_v2_service.app[each.key].name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# Migrations run as one-off jobs before each deploy: the database owner applies them and creates
+# the app's least-privilege login role.
+locals {
+  migrations = {
+    lighthouse = {
+      args = ["migrate"]
+      env = {
+        MIGRATE_DATABASE_URL = "postgres://lighthouse_owner@${local.lighthouse_host}/lighthouse?sslmode=require"
+        DATABASE_URL         = local.lighthouse_db
+      }
+      secrets = { PGPASSWORD = "lighthouse-db-owner", APP_DB_PASSWORD = "lighthouse-db-app" }
+    }
+    redacted = {
+      args = ["dist/database/migrate.js"]
+      env = {
+        MIGRATION_DATABASE_URL = "postgres://rbac_owner@${local.redacted_host}/rbac?sslmode=require"
+        DATABASE_URL           = local.redacted_db
+      }
+      secrets = { PGPASSWORD = "redacted-db-owner", APP_DB_PASSWORD = "redacted-db-app" }
+    }
+  }
+}
+
+resource "google_cloud_run_v2_job" "migrate" {
+  for_each            = local.migrations
+  name                = "${each.key}-migrate"
+  location            = var.region
+  deletion_protection = false
+
+  template {
+    task_count = 1
+    template {
+      service_account = google_service_account.run[each.key].email
+      max_retries     = 0
+      timeout         = "300s"
+      containers {
+        image = local.placeholder
+        args  = each.value.args
+        resources {
+          limits = { cpu = "1", memory = "512Mi" }
+        }
+        dynamic "env" {
+          for_each = each.value.env
+          content {
+            name  = env.key
+            value = env.value
+          }
+        }
+        dynamic "env" {
+          for_each = each.value.secrets
+          content {
+            name = env.key
+            value_source {
+              secret_key_ref {
+                secret  = google_secret_manager_secret.s[env.value].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [template[0].template[0].containers[0].image, client, client_version]
+  }
+  depends_on = [google_secret_manager_secret_iam_member.reader, google_secret_manager_secret_version.s]
+}
