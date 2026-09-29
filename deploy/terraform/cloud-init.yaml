@@ -2,6 +2,10 @@
 # Installs k3s from its release binary, checked against the release's own checksum. Traefik and
 # the service load balancer are disabled: nothing is exposed on the host, and cloudflared reaches
 # services inside the cluster directly.
+#
+# Also installs cloudflared on the host, from Cloudflare's signed package repository, connected to
+# the admin tunnel: SSH has to work before the cluster exists, so it can't go through the
+# in-cluster cloudflared.
 package_update: true
 package_upgrade: true
 packages: [curl, unattended-upgrades]
@@ -22,6 +26,14 @@ write_files:
 
 runcmd:
   - sysctl --system
+  - |
+    set -eu
+    install -d -m 0755 /usr/share/keyrings
+    curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg -o /usr/share/keyrings/cloudflare-main.gpg
+    echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' > /etc/apt/sources.list.d/cloudflared.list
+    apt-get update
+    apt-get install -y cloudflared
+    cloudflared service install "${admin_tunnel_token}"
   - |
     set -eu
     v="${k3s_version}"

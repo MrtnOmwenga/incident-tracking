@@ -6,7 +6,7 @@ private_key_path = "~/.oci/oci_api_key.pem"
 region           = "eu-frankfurt-1"
 compartment_ocid = "ocid1.tenancy.oc1..aaaa"
 ssh_public_key   = "ssh-ed25519 AAAA... martin"
-admin_cidr       = "203.0.113.7/32"
+admin_email      = "you@example.com"
 
 cloudflare_account_id = "0123456789abcdef0123456789abcdef"
 cloudflare_zone_id    = "0123456789abcdef0123456789abcdef"
