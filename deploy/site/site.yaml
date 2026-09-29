@@ -18,7 +18,7 @@ profile:
     standfirst: >-
       A fullstack and platform engineer in Nairobi, currently tech lead on platforms for European
       clients. This site is his portfolio, and also one of his projects: every demo below is live,
-      watched every 30 seconds by a monitoring system he wrote.
+      checked every 15 minutes by a monitoring system he wrote.
     paragraphs:
       - >-
         Recent work includes preview environments for every pull request on Kubernetes, a two-way
@@ -236,7 +236,7 @@ projects:
     kicker: Lighthouse · Infrastructure · The system behind this page
     headline: The website that monitors itself, logs its own failures and publishes the evidence
     standfirst: >-
-      Every 30 seconds it checks each project on this page. When one goes down it opens an
+      Every 15 minutes it checks each project on this page. When one goes down it opens an
       incident, writes up what happened, and closes the case when service returns. Nobody has to
       press a button.
     plain: >-
@@ -244,11 +244,12 @@ projects:
       and publishes what happened. It also checks a demo is up before opening it for you.
     hood: >-
       Go and PostgreSQL with row-level security, SSRF-safe probes, incidents opened by a state
-      machine, property tests and fuzzing. Shipped as a distroless container.
+      machine, property tests and fuzzing. Runs free on Cloud Run behind a Cloudflare edge,
+      deployed without stored credentials.
     figure: architecture
     placement: feature
     facts:
-      - { label: Checks, value: every 30 s }
+      - { label: Checks, value: every 15 min }
       - { label: Language, value: Go }
       - { label: Tests, value: "race, fuzz, property" }
     repo: https://github.com/MrtnOmwenga/lighthouse

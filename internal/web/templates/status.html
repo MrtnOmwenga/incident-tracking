@@ -9,7 +9,7 @@
   <div class="span-8 stack">
     <span class="kicker">Systems data</span>
     <h1 class="banner-status"><span class="dot {{.Status.Overall}}" aria-hidden="true"></span>{{.Status.Overall.Label}}</h1>
-    <p class="standfirst">Every project is checked every 30 seconds. An incident opens after several failures in a row, and closes after several successes. Updated {{when .Now}}; this page refreshes every minute.</p>
+    <p class="standfirst">Every project is checked on a schedule. An incident opens after several failures in a row, and closes after several successes. Updated {{when .Now}}; this page refreshes every minute.</p>
   </div>
   <div class="span-4 stats align-end">
     <div class="stat claret"><span class="k">Services watched</span><p class="v">{{len .Status.Monitors}}</p></div>
